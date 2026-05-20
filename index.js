@@ -19,13 +19,20 @@ app.use(cors());
 /* =========================
    DB
 ========================= */
-const pool = new Pool({
-  user: "postgres",
-  host: "localhost",
-  database: "ai_platform",
-  password: process.env.DB_PASSWORD,
-  port: 5432,
-});
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    })
+  : new Pool({
+      user: "postgres",
+      host: "localhost",
+      database: "ai_platform",
+      password: process.env.DB_PASSWORD,
+      port: 5432,
+    });
 
 /* =========================
    OPENAI
