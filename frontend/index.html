@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Multi IA PRO</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  height: 100vh;
+  background: #0f172a;
+}
+
+/* LOGIN */
+.login {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #020617, #111827);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-card {
+  width: 370px;
+  background: #111827;
+  padding: 28px;
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.4);
+}
+
+.login-card h2 {
+  margin-top: 0;
+  text-align: center;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 10px;
+  border: 1px solid #374151;
+  background: #020617;
+  color: white;
+}
+
+.login-card button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.primary {
+  background: #2563eb;
+  color: white;
+}
+
+.secondary {
+  background: #374151;
+  color: white;
+}
+
+/* APP */
+.app {
+  display: none;
+  height: 100vh;
+  width: 100%;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 320px;
+  background: #020617;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #1f2937;
+}
+
+.sidebar-top {
+  padding: 14px;
+  border-bottom: 1px solid #1f2937;
+}
+
+.sidebar-top h3 {
+  margin: 0 0 12px 0;
+}
+
+.alexa-card {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.alexa-card small {
+  color: #94a3b8;
+}
+
+.alexa-code {
+  margin-top: 6px;
+  font-weight: bold;
+  color: #38bdf8;
+  font-size: 15px;
+}
+
+.new-chat {
+  width: 100%;
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.provider-select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  background: #111827;
+  color: white;
+  border: 1px solid #374151;
+}
+
+.chat-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.chat-item {
+  padding: 11px;
+  background: #111827;
+  margin-bottom: 8px;
+  cursor: pointer;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #e5e7eb;
+}
+
+.chat-item:hover {
+  background: #1f2937;
+}
+
+.chat-source {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.sidebar-bottom {
+  padding: 14px;
+  border-top: 1px solid #1f2937;
+}
+
+.logout {
+  width: 100%;
+  background: #7f1d1d;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* MAIN */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+}
+
+.header {
+  height: 58px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  background: white;
+}
+
+.header-title {
+  font-weight: bold;
+}
+
+.header-provider {
+  margin-left: 10px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.chat-box {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.msg {
+  max-width: 75%;
+  padding: 13px 15px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.user {
+  align-self: flex-end;
+  background: #2563eb;
+  color: white;
+}
+
+.ai {
+  align-self: flex-start;
+  background: white;
+  border: 1px solid #e5e7eb;
+  color: #111827;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #3730a3;
+  margin-bottom: 6px;
+  margin-right: 5px;
+}
+
+.source-badge {
+  display: inline-block;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  margin-bottom: 6px;
+}
+
+.input-area {
+  display: flex;
+  gap: 10px;
+  padding: 15px;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+}
+
+.input-area input {
+  flex: 1;
+  padding: 13px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+}
+
+.input-area button {
+  padding: 0 22px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.input-area button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login">
+  <div class="login-card">
+    <h2>🔐 Multi IA PRO</h2>
+    <input id="email" placeholder="Email o usuario">
+    <input id="password" type="password" placeholder="Password">
+    <button class="primary" onclick="login()">Entrar</button>
+    <button class="secondary" onclick="register()">Crear cuenta</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <h3>📚 Chats</h3>
+
+      <div class="alexa-card">
+        <small>Tu código para conectar Alexa:</small>
+        <div id="alexaCode" class="alexa-code">Cargando...</div>
+      </div>
+
+      <button class="new-chat" onclick="nuevoChat()">+ Nuevo Chat Web</button>
+
+      <select id="iaSelect" class="provider-select" onchange="updateProviderLabel()">
+        <option value="auto">Auto gratis/rápido</option>
+        <option value="chatgpt">ChatGPT</option>
+        <option value="groq_fast">Groq rápido</option>
+        <option value="groq_power">Groq potente</option>
+        <option value="gemini">Gemini experimental</option>
+      </select>
+    </div>
+
+    <div id="history" class="chat-list"></div>
+
+    <div class="sidebar-bottom">
+      <button class="logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <span class="header-title">🤖 Panel Multi IA + Alexa</span>
+      <span id="providerLabel" class="header-provider">Auto gratis/rápido</span>
+    </div>
+
+    <div id="chat" class="chat-box"></div>
+
+    <div class="input-area">
+      <input id="msg" placeholder="Escribe tu mensaje..." onkeydown="handleKey(event)">
+      <button id="sendBtn" onclick="send()">Enviar</button>
+    </div>
+  </main>
+
+</div>
+
+<script>
+const API = "http://localhost:3000";
+
+let conversation_id = null;
+let token = localStorage.getItem("token");
+
+const loginScreen = document.getElementById("loginScreen");
+const app = document.getElementById("app");
+const chat = document.getElementById("chat");
+const historyBox = document.getElementById("history");
+const msgInput = document.getElementById("msg");
+const sendBtn = document.getElementById("sendBtn");
+const iaSelect = document.getElementById("iaSelect");
+const providerLabel = document.getElementById("providerLabel");
+const alexaCodeBox = document.getElementById("alexaCode");
+
+function getProviderName(value) {
+  const names = {
+    auto: "Auto gratis/rápido",
+    chatgpt: "ChatGPT",
+    groq_fast: "Groq rápido",
+    groq_power: "Groq potente",
+    gemini: "Gemini experimental"
+  };
+
+  return names[value] || "Auto";
+}
+
+function getSourceName(value) {
+  const names = {
+    web: "🌐 Web",
+    alexa: "🔊 Alexa",
+    mobile: "📱 Móvil"
+  };
+
+  return names[value] || "🌐 Web";
+}
+
+function updateProviderLabel() {
+  providerLabel.innerText = getProviderName(iaSelect.value);
+}
+
+/* ================= LOGIN ================= */
+async function login() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  if (!email || !password) {
+    alert("Escribe email y password");
+    return;
+  }
+
+  const res = await fetch(API + "/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+
+  const data = await res.json();
+
+  if (data.token) {
+    localStorage.setItem("token", data.token);
+    token = data.token;
+    startApp();
+  } else {
+    alert(data.error || "Error login");
+  }
+}
+
+/* ================= REGISTER ================= */
+async function register() {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  if (!email || !password) {
+    alert("Escribe email y password");
+    return;
+  }
+
+  const res = await fetch(API + "/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+
+  const data = await res.json();
+
+  if (data.ok) {
+    alert("Usuario creado. Ahora inicia sesión.");
+  } else {
+    alert(data.error || "Error al registrar");
+  }
+}
+
+/* ================= LOGOUT ================= */
+function logout() {
+  localStorage.removeItem("token");
+  location.reload();
+}
+
+/* ================= START ================= */
+function startApp() {
+  loginScreen.style.display = "none";
+  app.style.display = "flex";
+  updateProviderLabel();
+  loadMe();
+  loadChats();
+}
+
+/* ================= USER INFO ================= */
+async function loadMe() {
+  const res = await fetch(API + "/me", {
+    headers: { "Authorization": token }
+  });
+
+  const data = await res.json();
+
+  if (data.alexa_code) {
+    alexaCodeBox.innerText = data.alexa_code;
+  } else {
+    alexaCodeBox.innerText = "Sin código";
+  }
+}
+
+/* ================= SEND WEB ================= */
+async function send() {
+  const mensaje = msgInput.value.trim();
+  const ia = iaSelect.value;
+
+  if (!mensaje) return;
+
+  addMsg("user", mensaje, "", "web");
+
+  msgInput.value = "";
+  sendBtn.disabled = true;
+  sendBtn.innerText = "Pensando...";
+
+  try {
+    const res = await fetch(API + "/preguntar", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": token
+      },
+      body: JSON.stringify({
+        mensaje,
+        conversation_id,
+        ia
+      })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+      addMsg("ai", data.error, "Error", "web");
+      return;
+    }
+
+    conversation_id = data.conversation_id;
+
+    addMsg("ai", data.respuesta, data.ia_nombre || getProviderName(data.ia), data.source || "web");
+
+    loadChats();
+
+  } catch (error) {
+    addMsg("ai", "No se pudo conectar con el servidor.", "Error", "web");
+  } finally {
+    sendBtn.disabled = false;
+    sendBtn.innerText = "Enviar";
+    msgInput.focus();
+  }
+}
+
+/* ================= UI ================= */
+function addMsg(role, text, iaName = "", source = "web") {
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+
+  if (role === "ai" && iaName) {
+    const badge = document.createElement("div");
+    badge.className = "badge";
+    badge.innerText = iaName;
+    div.appendChild(badge);
+
+    const sourceBadge = document.createElement("div");
+    sourceBadge.className = "source-badge";
+    sourceBadge.innerText = getSourceName(source);
+    div.appendChild(sourceBadge);
+  }
+
+  const content = document.createElement("div");
+  content.innerText = text;
+  div.appendChild(content);
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+/* ================= LOAD CHATS ================= */
+async function loadChats() {
+  const res = await fetch(API + "/conversaciones", {
+    headers: { "Authorization": token }
+  });
+
+  const data = await res.json();
+
+  historyBox.innerHTML = "";
+
+  if (!Array.isArray(data)) return;
+
+  data.forEach(c => {
+    const div = document.createElement("div");
+    div.className = "chat-item";
+
+    const source = document.createElement("span");
+    source.className = "chat-source";
+    source.innerText = getSourceName(c.source);
+
+    const title = document.createElement("div");
+    title.innerText = c.titulo || "Chat sin título";
+
+    div.appendChild(source);
+    div.appendChild(title);
+
+    div.onclick = () => openChat(c.conversation_id);
+
+    historyBox.appendChild(div);
+  });
+}
+
+/* ================= OPEN CHAT ================= */
+async function openChat(id) {
+  conversation_id = id;
+
+  const res = await fetch(API + "/historial/" + id, {
+    headers: { "Authorization": token }
+  });
+
+  const data = await res.json();
+
+  chat.innerHTML = "";
+
+  if (!Array.isArray(data)) return;
+
+  data.forEach(m => {
+    const iaName = m.role === "ai" ? getProviderName(m.ia) : "";
+    addMsg(
+      m.role === "user" ? "user" : "ai",
+      m.mensaje,
+      iaName,
+      m.source || "web"
+    );
+  });
+}
+
+/* ================= NEW CHAT ================= */
+function nuevoChat() {
+  conversation_id = null;
+  chat.innerHTML = "";
+  msgInput.focus();
+}
+
+/* ================= ENTER KEY ================= */
+function handleKey(event) {
+  if (event.key === "Enter") {
+    send();
+  }
+}
+
+/* ================= INIT ================= */
+if (token) {
+  startApp();
+}
+</script>
+
+</body>
+</html>
