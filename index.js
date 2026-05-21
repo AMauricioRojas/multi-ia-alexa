@@ -668,7 +668,7 @@ app.get("/providers", auth, (req, res) => {
    ALEXA SKILL FORMAT
 ========================= */
 
-function alexaResponse(text, shouldEndSession = true) {
+function alexaResponse(text, shouldEndSession = false) {
   return {
     version: "1.0",
     response: {
@@ -685,47 +685,105 @@ function getSlotValue(slots, slotName) {
   return slots?.[slotName]?.value || "";
 }
 
+function getAlexaUserId(body) {
+  return (
+    body?.session?.user?.userId ||
+    body?.context?.System?.user?.userId ||
+    "unknown-user"
+  );
+}
+
+function normalizeAlexaCode(value) {
+  let code = cleanText(value).toUpperCase();
+
+  if (!code) return "";
+
+  if (/^\d+$/.test(code)) {
+    return `ALEXA-${code}`;
+  }
+
+  if (!code.startsWith("ALEXA-")) {
+    code = `ALEXA-${code}`;
+  }
+
+  return code;
+}
+
+function normalizeSpokenIA(value) {
+  let ia = cleanText(value).toLowerCase();
+
+  ia = ia
+    .replace("chat gpt", "chatgpt")
+    .replace("chatgpt", "chatgpt")
+    .replace("groq rapido", "groq_fast")
+    .replace("groq rápido", "groq_fast")
+    .replace("groq rapida", "groq_fast")
+    .replace("groq rápida", "groq_fast")
+    .replace("groq potente", "groq_power")
+    .replace("gemini", "gemini")
+    .replace("auto", "auto");
+
+  return normalizeProvider(ia || "auto");
+}
+
+async function getAlexaLink(alexaUserId) {
+  const result = await pool.query(
+    `SELECT al.user_id, al.preferred_ia, u.email, u.alexa_code
+     FROM alexa_links al
+     JOIN users u ON u.id = al.user_id
+     WHERE al.alexa_user_id=$1`,
+    [alexaUserId]
+  );
+
+  return result.rows[0] || null;
+}
+
 app.post("/alexa/skill", async (req, res) => {
   try {
     const requestType = req.body?.request?.type;
+    const alexaUserId = getAlexaUserId(req.body);
 
     /* =========================
-       CUANDO ABREN LA SKILL
+       ABRIR SKILL
     ========================= */
     if (requestType === "LaunchRequest") {
+      const link = await getAlexaLink(alexaUserId);
+
+      if (link) {
+        return res.json(
+          alexaResponse(
+            `Bienvenido de nuevo. Tu cuenta ya está vinculada. Puedes decir: pregunta qué es una API, o decir: usa groq rápido.`,
+            false
+          )
+        );
+      }
+
       return res.json(
         alexaResponse(
-          "Bienvenido a Multi IA. Puedes decir: pregunta con mi código Alexa uno, qué es una base de datos.",
+          "Bienvenido a Asistente Inteligente. Primero vincula tu cuenta diciendo: mi código es, y el número que aparece en tu página web.",
           false
         )
       );
     }
 
     /* =========================
-       CUANDO HACEN UNA PREGUNTA
+       INTENTS
     ========================= */
     if (requestType === "IntentRequest") {
       const intentName = req.body?.request?.intent?.name;
       const slots = req.body?.request?.intent?.slots || {};
 
-      if (intentName === "PreguntaIntent") {
-        const mensaje = cleanText(getSlotValue(slots, "pregunta"));
-        const alexa_code = cleanText(getSlotValue(slots, "codigo")).toUpperCase();
-        const provider = normalizeProvider(getSlotValue(slots, "ia") || "auto");
+      /* =========================
+         VINCULAR USUARIO
+      ========================= */
+      if (intentName === "VincularIntent") {
+        const rawCode = getSlotValue(slots, "codigo");
+        const alexaCode = normalizeAlexaCode(rawCode);
 
-        if (!mensaje) {
+        if (!alexaCode) {
           return res.json(
             alexaResponse(
-              "No entendí la pregunta. Intenta decir: pregunta qué es una base de datos.",
-              false
-            )
-          );
-        }
-
-        if (!alexa_code) {
-          return res.json(
-            alexaResponse(
-              "No recibí tu código de conexión. Puedes verlo en la página web de Multi IA.",
+              "No entendí tu código. Intenta decir: mi código es tres.",
               false
             )
           );
@@ -733,13 +791,13 @@ app.post("/alexa/skill", async (req, res) => {
 
         const userResult = await pool.query(
           "SELECT id, email, alexa_code FROM users WHERE UPPER(alexa_code)=$1",
-          [alexa_code]
+          [alexaCode]
         );
 
         if (userResult.rows.length === 0) {
           return res.json(
             alexaResponse(
-              "No encontré ese código de Alexa. Revisa tu código en la aplicación.",
+              `No encontré el código ${alexaCode}. Revisa tu código en la página web.`,
               false
             )
           );
@@ -747,10 +805,87 @@ app.post("/alexa/skill", async (req, res) => {
 
         const user = userResult.rows[0];
 
+        await pool.query(
+          `INSERT INTO alexa_links (alexa_user_id, user_id, preferred_ia, updated_at)
+           VALUES ($1, $2, 'auto', CURRENT_TIMESTAMP)
+           ON CONFLICT (alexa_user_id)
+           DO UPDATE SET 
+             user_id = EXCLUDED.user_id,
+             updated_at = CURRENT_TIMESTAMP`,
+          [alexaUserId, user.id]
+        );
+
+        return res.json(
+          alexaResponse(
+            `Listo. Tu Alexa quedó vinculada con la cuenta ${user.email}. Ahora puedes decir: pregunta qué es una API.`,
+            false
+          )
+        );
+      }
+
+      /* =========================
+         CAMBIAR IA
+      ========================= */
+      if (intentName === "CambiarIAIntent") {
+        const link = await getAlexaLink(alexaUserId);
+
+        if (!link) {
+          return res.json(
+            alexaResponse(
+              "Primero vincula tu cuenta. Di: mi código es, y el número que aparece en tu página web.",
+              false
+            )
+          );
+        }
+
+        const iaValue = getSlotValue(slots, "ia");
+        const provider = normalizeSpokenIA(iaValue);
+
+        await pool.query(
+          `UPDATE alexa_links
+           SET preferred_ia=$1, updated_at=CURRENT_TIMESTAMP
+           WHERE alexa_user_id=$2`,
+          [provider, alexaUserId]
+        );
+
+        return res.json(
+          alexaResponse(
+            `Listo. Ahora responderé usando ${providerLabel(provider)}.`,
+            false
+          )
+        );
+      }
+
+      /* =========================
+         PREGUNTAR
+      ========================= */
+      if (intentName === "PreguntaIntent") {
+        const link = await getAlexaLink(alexaUserId);
+
+        if (!link) {
+          return res.json(
+            alexaResponse(
+              "Primero vincula tu cuenta. Di: mi código es, y el número que aparece en tu página web.",
+              false
+            )
+          );
+        }
+
+        const mensaje = cleanText(getSlotValue(slots, "pregunta"));
+
+        if (!mensaje) {
+          return res.json(
+            alexaResponse(
+              "No entendí la pregunta. Intenta decir: pregunta qué es una API.",
+              false
+            )
+          );
+        }
+
         const result = await processQuestion({
-          user_id: user.id,
+          user_id: link.user_id,
           mensaje,
-          provider,
+          provider: link.preferred_ia || "auto",
           conversation_id: null,
           source: "alexa",
           alexaMode: true
@@ -761,10 +896,13 @@ app.post("/alexa/skill", async (req, res) => {
         );
       }
 
+      /* =========================
+         BUILT-IN INTENTS
+      ========================= */
       if (intentName === "AMAZON.HelpIntent") {
         return res.json(
           alexaResponse(
-            "Puedes pedirme que haga una pregunta usando tu código. Por ejemplo: pregunta con mi código Alexa uno, qué es una API.",
+            "Puedes decir: mi código es tres, para vincular tu cuenta. Después puedes decir: pregunta qué es una API.",
             false
           )
         );
@@ -781,14 +919,14 @@ app.post("/alexa/skill", async (req, res) => {
 
       return res.json(
         alexaResponse(
-          "No entendí esa intención. Intenta hacer una pregunta.",
+          "No entendí esa instrucción. Intenta decir: pregunta qué es una API.",
           false
         )
       );
     }
 
     /* =========================
-       CUANDO TERMINA LA SESIÓN
+       FIN DE SESIÓN
     ========================= */
     if (requestType === "SessionEndedRequest") {
       return res.json({});
@@ -803,7 +941,7 @@ app.post("/alexa/skill", async (req, res) => {
 
     return res.json(
       alexaResponse(
-        "Hubo un error procesando tu pregunta. Intenta de nuevo más tarde.",
+        "Hubo un error procesando tu solicitud. Intenta de nuevo más tarde.",
         true
       )
     );
