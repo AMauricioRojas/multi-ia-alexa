@@ -6,6 +6,8 @@ import dotenv from "dotenv";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import fetch from "node-fetch";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
@@ -13,21 +15,39 @@ const { Pool } = pkg;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+/* =========================
+   MIDDLEWARE
+========================= */
+app.use(express.json({ limit: "2mb" }));
 app.use(cors());
+
 app.use((req, res, next) => {
   console.log(`[REQ] ${new Date().toISOString()} ${req.method} ${req.url}`);
   next();
 });
 
+/* =========================
+   STATIC FRONTEND
+========================= */
+app.use(express.static(path.join(__dirname, "frontend")));
+
 app.get("/", (req, res) => {
-  res.send("Multi IA Alexa backend activo");
+  const indexPath = path.join(__dirname, "frontend", "index.html");
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.send("Multi IA Alexa backend activo");
+    }
+  });
 });
 
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
-    message: "Servidor activo"
+    message: "Servidor activo",
+    time: new Date().toISOString()
   });
 });
 
@@ -46,14 +66,51 @@ const pool = process.env.DATABASE_URL
       host: "localhost",
       database: "ai_platform",
       password: process.env.DB_PASSWORD,
-      port: 5432,
+      port: 5432
     });
+
+async function initDatabase() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      alexa_code TEXT UNIQUE
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS chats (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      conversation_id TEXT,
+      role TEXT,
+      mensaje TEXT,
+      ia TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      source TEXT DEFAULT 'web'
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS alexa_links (
+      id SERIAL PRIMARY KEY,
+      alexa_user_id TEXT UNIQUE NOT NULL,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      preferred_ia TEXT DEFAULT 'auto',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  console.log("✅ Tablas verificadas correctamente");
+}
 
 /* =========================
    OPENAI
 ========================= */
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 /* =========================
@@ -64,17 +121,30 @@ function cleanText(text) {
 }
 
 function normalizeProvider(provider) {
-  const value = String(provider || "auto").toLowerCase();
+  const value = String(provider || "auto").toLowerCase().trim();
 
-  const validProviders = [
-    "auto",
-    "chatgpt",
-    "groq_fast",
-    "groq_power",
-    "gemini"
-  ];
+  const map = {
+    auto: "auto",
+    chatgpt: "chatgpt",
+    "chat gpt": "chatgpt",
+    openai: "chatgpt",
 
-  return validProviders.includes(value) ? value : "auto";
+    groq: "groq_fast",
+    grok: "groq_fast",
+    groq_fast: "groq_fast",
+    "groq rapido": "groq_fast",
+    "groq rápido": "groq_fast",
+    "grok rapido": "groq_fast",
+    "grok rápido": "groq_fast",
+
+    groq_power: "groq_power",
+    "groq potente": "groq_power",
+    "grok potente": "groq_power",
+
+    gemini: "gemini"
+  };
+
+  return map[value] || "auto";
 }
 
 function providerLabel(provider) {
@@ -92,9 +162,41 @@ function providerLabel(provider) {
 function shortForAlexa(text) {
   const clean = String(text || "").replace(/\s+/g, " ").trim();
 
-  if (clean.length <= 900) return clean;
+  if (clean.length <= 850) return clean;
 
-  return clean.slice(0, 900) + "... Puedes ver la respuesta completa en la aplicación.";
+  return clean.slice(0, 850) + "... Puedes ver la respuesta completa en la aplicación.";
+}
+
+function getSlotValue(slots, slotName) {
+  return slots?.[slotName]?.value || "";
+}
+
+function getAlexaUserId(body) {
+  return (
+    body?.session?.user?.userId ||
+    body?.context?.System?.user?.userId ||
+    "unknown-user"
+  );
+}
+
+function normalizeAlexaCode(value) {
+  let code = cleanText(value).toUpperCase();
+
+  if (!code) return "";
+
+  if (/^\d+$/.test(code)) {
+    return `ALEXA-${code}`;
+  }
+
+  if (!code.startsWith("ALEXA-")) {
+    code = `ALEXA-${code}`;
+  }
+
+  return code;
+}
+
+function normalizeSpokenIA(value) {
+  return normalizeProvider(value);
 }
 
 /* =========================
@@ -156,12 +258,12 @@ app.post("/register", async (req, res) => {
       message: "Usuario creado correctamente",
       user: updated.rows[0]
     });
-
   } catch (error) {
     console.log("REGISTER ERROR:", error.message);
 
     res.status(400).json({
-      error: "No se pudo registrar. Puede que el usuario ya exista."
+      error: "No se pudo registrar. Puede que el usuario ya exista.",
+      detalle: error.message
     });
   }
 });
@@ -200,10 +302,14 @@ app.post("/login", async (req, res) => {
       });
     }
 
-    if (!user.alexa_code) {
+    let alexaCode = user.alexa_code;
+
+    if (!alexaCode) {
+      alexaCode = `ALEXA-${user.id}`;
+
       await pool.query(
         "UPDATE users SET alexa_code=$1 WHERE id=$2",
-        [`ALEXA-${user.id}`, user.id]
+        [alexaCode, user.id]
       );
     }
 
@@ -219,12 +325,12 @@ app.post("/login", async (req, res) => {
     );
 
     res.json({ token });
-
   } catch (error) {
     console.log("LOGIN ERROR:", error.message);
 
     res.status(500).json({
-      error: "Error en login"
+      error: "Error en login",
+      detalle: error.message
     });
   }
 });
@@ -244,10 +350,13 @@ app.get("/me", auth, async (req, res) => {
     }
 
     res.json(result.rows[0]);
-
   } catch (error) {
     console.log("ME ERROR:", error.message);
-    res.status(500).json({ error: "Error obteniendo usuario" });
+
+    res.status(500).json({
+      error: "Error obteniendo usuario",
+      detalle: error.message
+    });
   }
 });
 
@@ -261,7 +370,7 @@ async function askChatGPT(messages) {
 
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
-    messages,
+    messages
   });
 
   const text = response.choices?.[0]?.message?.content;
@@ -381,7 +490,7 @@ async function askAI(provider, messages, rawMessage) {
 
       return {
         respuesta:
-          "⚠️ Gemini está saturado o no respondió correctamente. Respondí usando Groq rápido como respaldo.\n\n" +
+          "Gemini no respondió correctamente. Respondí usando Groq rápido como respaldo.\n\n" +
           fallback,
         iaUsada: "groq_fast"
       };
@@ -511,25 +620,29 @@ app.post("/preguntar", auth, async (req, res) => {
     });
 
     res.json(result);
-
   } catch (error) {
     console.log("CHAT ERROR:", error);
 
     res.status(500).json({
-      error: "Error servidor"
+      error: "Error servidor",
+      detalle: error.message
     });
   }
 });
 
 /* =========================
-   ALEXA CHAT
+   ALEXA SIMPLE TEST
 ========================= */
 app.post("/alexa/preguntar", async (req, res) => {
   try {
     const mensaje = cleanText(req.body.mensaje);
-    const alexa_code = cleanText(req.body.alexa_code).toUpperCase();
+    let alexa_code = cleanText(req.body.alexa_code).toUpperCase();
     const provider = normalizeProvider(req.body.ia || "auto");
     const conversation_id = req.body.conversation_id || null;
+
+    if (/^\d+$/.test(alexa_code)) {
+      alexa_code = `ALEXA-${alexa_code}`;
+    }
 
     if (!mensaje) {
       return res.status(400).json({
@@ -573,12 +686,12 @@ app.post("/alexa/preguntar", async (req, res) => {
       ia_nombre: result.ia_nombre,
       source: "alexa"
     });
-
   } catch (error) {
-    console.log("ALEXA ERROR:", error);
+    console.log("ALEXA SIMPLE ERROR:", error);
 
     res.status(500).json({
-      error: "Error servidor Alexa"
+      error: "Error servidor Alexa",
+      detalle: error.message
     });
   }
 });
@@ -610,12 +723,12 @@ app.get("/conversaciones", auth, async (req, res) => {
     `, [req.user.user_id]);
 
     res.json(result.rows);
-
   } catch (error) {
     console.log("CONVERSACIONES ERROR:", error.message);
 
     res.status(500).json({
-      error: "Error obteniendo conversaciones"
+      error: "Error obteniendo conversaciones",
+      detalle: error.message
     });
   }
 });
@@ -636,12 +749,12 @@ app.get("/historial/:id", auth, async (req, res) => {
     );
 
     res.json(result.rows);
-
   } catch (error) {
     console.log("HISTORIAL ERROR:", error.message);
 
     res.status(500).json({
-      error: "Error obteniendo historial"
+      error: "Error obteniendo historial",
+      detalle: error.message
     });
   }
 });
@@ -673,7 +786,7 @@ app.get("/providers", auth, (req, res) => {
     },
     {
       id: "gemini",
-      name: "Gemini experimental",
+      name: "Gemini",
       description: "gemini-2.5-flash-lite con respaldo de Groq"
     }
   ]);
@@ -682,63 +795,18 @@ app.get("/providers", auth, (req, res) => {
 /* =========================
    ALEXA SKILL FORMAT
 ========================= */
-
 function alexaResponse(text, shouldEndSession = false) {
   return {
     version: "1.0",
+    sessionAttributes: {},
     response: {
       outputSpeech: {
         type: "PlainText",
-        text
+        text: String(text || "No tengo respuesta.")
       },
       shouldEndSession
     }
   };
-}
-
-function getSlotValue(slots, slotName) {
-  return slots?.[slotName]?.value || "";
-}
-
-function getAlexaUserId(body) {
-  return (
-    body?.session?.user?.userId ||
-    body?.context?.System?.user?.userId ||
-    "unknown-user"
-  );
-}
-
-function normalizeAlexaCode(value) {
-  let code = cleanText(value).toUpperCase();
-
-  if (!code) return "";
-
-  if (/^\d+$/.test(code)) {
-    return `ALEXA-${code}`;
-  }
-
-  if (!code.startsWith("ALEXA-")) {
-    code = `ALEXA-${code}`;
-  }
-
-  return code;
-}
-
-function normalizeSpokenIA(value) {
-  let ia = cleanText(value).toLowerCase();
-
-  ia = ia
-    .replace("chat gpt", "chatgpt")
-    .replace("chatgpt", "chatgpt")
-    .replace("groq rapido", "groq_fast")
-    .replace("groq rápido", "groq_fast")
-    .replace("groq rapida", "groq_fast")
-    .replace("groq rápida", "groq_fast")
-    .replace("groq potente", "groq_power")
-    .replace("gemini", "gemini")
-    .replace("auto", "auto");
-
-  return normalizeProvider(ia || "auto");
 }
 
 async function getAlexaLink(alexaUserId) {
@@ -755,27 +823,20 @@ async function getAlexaLink(alexaUserId) {
 
 app.post("/alexa/skill", async (req, res) => {
   try {
+    console.log("ALEXA BODY TYPE:", req.body?.request?.type);
+    console.log("ALEXA INTENT:", req.body?.request?.intent?.name || "NO_INTENT");
+
     const requestType = req.body?.request?.type;
     const alexaUserId = getAlexaUserId(req.body);
 
     /* =========================
-       ABRIR SKILL
+       LAUNCH
+       Nota: No consultamos DB aquí para responder rápido.
     ========================= */
     if (requestType === "LaunchRequest") {
-      const link = await getAlexaLink(alexaUserId);
-
-      if (link) {
-        return res.json(
-          alexaResponse(
-            `Bienvenido de nuevo. Tu cuenta ya está vinculada. Puedes decir: pregunta qué es una API, o decir: usa groq rápido.`,
-            false
-          )
-        );
-      }
-
       return res.json(
         alexaResponse(
-          "Bienvenido a Asistente Inteligente. Primero vincula tu cuenta diciendo: mi código es, y el número que aparece en tu página web.",
+          "Bienvenido a Asistente Inteligente. Primero vincula tu cuenta diciendo: mi código es, y el número que aparece en tu página web. Por ejemplo: mi código es dos.",
           false
         )
       );
@@ -798,7 +859,7 @@ app.post("/alexa/skill", async (req, res) => {
         if (!alexaCode) {
           return res.json(
             alexaResponse(
-              "No entendí tu código. Intenta decir: mi código es tres.",
+              "No entendí tu código. Intenta decir: mi código es dos.",
               false
             )
           );
@@ -917,7 +978,7 @@ app.post("/alexa/skill", async (req, res) => {
       if (intentName === "AMAZON.HelpIntent") {
         return res.json(
           alexaResponse(
-            "Puedes decir: mi código es tres, para vincular tu cuenta. Después puedes decir: pregunta qué es una API.",
+            "Puedes decir: mi código es dos, para vincular tu cuenta. Después puedes decir: pregunta qué es una API.",
             false
           )
         );
@@ -941,7 +1002,7 @@ app.post("/alexa/skill", async (req, res) => {
     }
 
     /* =========================
-       FIN DE SESIÓN
+       SESSION ENDED
     ========================= */
     if (requestType === "SessionEndedRequest") {
       return res.json({});
@@ -950,7 +1011,6 @@ app.post("/alexa/skill", async (req, res) => {
     return res.json(
       alexaResponse("No pude procesar esa solicitud.", true)
     );
-
   } catch (error) {
     console.log("ALEXA SKILL ERROR:", error);
 
@@ -962,9 +1022,42 @@ app.post("/alexa/skill", async (req, res) => {
     );
   }
 });
+
 /* =========================
-   SERVER
+   DEBUG OPCIONAL
 ========================= */
-app.listen(PORT, () => {
-  console.log(`🚀 MULTI IA + ALEXA preparado en http://localhost:${PORT}`);
+app.get("/debug/alexa-links", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT al.id, al.alexa_user_id, al.user_id, u.email, u.alexa_code, al.preferred_ia, al.created_at, al.updated_at
+      FROM alexa_links al
+      JOIN users u ON u.id = al.user_id
+      ORDER BY al.id DESC
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({
+      error: "Error debug alexa links",
+      detalle: error.message
+    });
+  }
 });
+
+/* =========================
+   START SERVER
+========================= */
+async function startServer() {
+  try {
+    await initDatabase();
+
+    app.listen(PORT, () => {
+      console.log(`🚀 MULTI IA + ALEXA listo en puerto ${PORT}`);
+    });
+  } catch (error) {
+    console.error("❌ ERROR INICIANDO SERVIDOR:", error);
+    process.exit(1);
+  }
+}
+
+startServer();
