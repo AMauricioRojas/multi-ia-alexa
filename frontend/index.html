@@ -25,6 +25,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 20;
 }
 
 .login-card {
@@ -37,6 +38,12 @@ body {
 
 .login-card h2 {
   margin-top: 0;
+  text-align: center;
+}
+
+.login-card p {
+  color: #94a3b8;
+  font-size: 14px;
   text-align: center;
 }
 
@@ -70,6 +77,26 @@ body {
   color: white;
 }
 
+.success {
+  background: #16a34a;
+  color: white;
+}
+
+.warning {
+  background: #f59e0b;
+  color: #111827;
+}
+
+.danger {
+  background: #7f1d1d;
+  color: white;
+}
+
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 /* APP */
 .app {
   display: none;
@@ -79,7 +106,7 @@ body {
 
 /* SIDEBAR */
 .sidebar {
-  width: 320px;
+  width: 340px;
   background: #020617;
   color: white;
   display: flex;
@@ -106,13 +133,57 @@ body {
 
 .alexa-card small {
   color: #94a3b8;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.alexa-status {
+  display: inline-block;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  margin: 6px 0 8px 0;
+}
+
+.status-linked {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-unlinked {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .alexa-code {
   margin-top: 6px;
   font-weight: bold;
   color: #38bdf8;
-  font-size: 15px;
+  font-size: 24px;
+  letter-spacing: 2px;
+}
+
+.alexa-help {
+  font-size: 12px;
+  color: #cbd5e1;
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+.alexa-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.alexa-actions button {
+  flex: 1;
+  border: none;
+  padding: 9px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 12px;
 }
 
 .new-chat {
@@ -186,7 +257,7 @@ body {
 }
 
 .header {
-  height: 58px;
+  min-height: 58px;
   border-bottom: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
@@ -210,6 +281,17 @@ body {
   padding: 22px;
   display: flex;
   flex-direction: column;
+}
+
+.empty-state {
+  margin: auto;
+  text-align: center;
+  color: #64748b;
+  max-width: 500px;
+}
+
+.empty-state h2 {
+  color: #0f172a;
 }
 
 .msg {
@@ -280,9 +362,88 @@ body {
   font-weight: bold;
 }
 
-.input-area button:disabled {
-  background: #94a3b8;
-  cursor: not-allowed;
+/* SURVEY MODAL */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+.modal {
+  width: 520px;
+  max-width: calc(100% - 24px);
+  background: white;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 25px 80px rgba(0,0,0,.35);
+}
+
+.modal h2 {
+  margin-top: 0;
+  color: #0f172a;
+}
+
+.modal p {
+  color: #475569;
+  line-height: 1.5;
+}
+
+.survey-row {
+  margin: 14px 0;
+}
+
+.survey-row label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 7px;
+  color: #0f172a;
+}
+
+.survey-row select,
+.survey-row textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+}
+
+.survey-row textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.modal-actions button {
+  flex: 1;
+  padding: 11px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+@media (max-width: 800px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    max-height: 45vh;
+  }
+
+  .msg {
+    max-width: 92%;
+  }
 }
 </style>
 </head>
@@ -293,6 +454,7 @@ body {
 <div id="loginScreen" class="login">
   <div class="login-card">
     <h2>🔐 Multi IA PRO</h2>
+    <p>Inicia sesión para ver tus chats de Web, Alexa y pronto móvil.</p>
     <input id="email" placeholder="Email o usuario">
     <input id="password" type="password" placeholder="Password">
     <button class="primary" onclick="login()">Entrar</button>
@@ -308,8 +470,20 @@ body {
       <h3>📚 Chats</h3>
 
       <div class="alexa-card">
-        <small>Tu código para conectar Alexa:</small>
-        <div id="alexaCode" class="alexa-code">Cargando...</div>
+        <small>Estado de Alexa:</small>
+        <span id="alexaStatusBadge" class="alexa-status status-unlinked">Cargando...</span>
+
+        <small>Código temporal para vincular:</small>
+        <div id="alexaCode" class="alexa-code">------</div>
+
+        <div id="alexaHelp" class="alexa-help">
+          Genera un código y dile a Alexa: “mi código es...” Después confirma diciendo “sí”.
+        </div>
+
+        <div class="alexa-actions">
+          <button id="generateCodeBtn" class="success" onclick="generateAlexaCode()">Generar código</button>
+          <button id="unlinkAlexaBtn" class="danger" onclick="unlinkAlexa()">Desvincular</button>
+        </div>
       </div>
 
       <button class="new-chat" onclick="nuevoChat()">+ Nuevo Chat Web</button>
@@ -336,7 +510,12 @@ body {
       <span id="providerLabel" class="header-provider">Auto gratis/rápido</span>
     </div>
 
-    <div id="chat" class="chat-box"></div>
+    <div id="chat" class="chat-box">
+      <div class="empty-state">
+        <h2>Bienvenido bro 🔥</h2>
+        <p>Escribe una pregunta desde la web o vincula Alexa para que todo lo que preguntes por voz aparezca aquí.</p>
+      </div>
+    </div>
 
     <div class="input-area">
       <input id="msg" placeholder="Escribe tu mensaje..." onkeydown="handleKey(event)">
@@ -346,8 +525,84 @@ body {
 
 </div>
 
+<!-- SURVEY MODAL -->
+<div id="surveyModal" class="modal-backdrop">
+  <div class="modal">
+    <h2>📊 Encuesta rápida</h2>
+    <p>
+      Queremos medir si las respuestas de Alexa mejoran al conectarla con Multi IA.
+      Califica tu experiencia hasta ahora.
+    </p>
+
+    <div class="survey-row">
+      <label>Claridad de las respuestas</label>
+      <select id="surveyClarity">
+        <option value="5">5 - Excelente</option>
+        <option value="4">4 - Buena</option>
+        <option value="3">3 - Regular</option>
+        <option value="2">2 - Mala</option>
+        <option value="1">1 - Muy mala</option>
+      </select>
+    </div>
+
+    <div class="survey-row">
+      <label>Qué tan completas fueron</label>
+      <select id="surveyCompleteness">
+        <option value="5">5 - Muy completas</option>
+        <option value="4">4 - Completas</option>
+        <option value="3">3 - Regular</option>
+        <option value="2">2 - Incompletas</option>
+        <option value="1">1 - Muy incompletas</option>
+      </select>
+    </div>
+
+    <div class="survey-row">
+      <label>Utilidad general</label>
+      <select id="surveyUsefulness">
+        <option value="5">5 - Muy útil</option>
+        <option value="4">4 - Útil</option>
+        <option value="3">3 - Regular</option>
+        <option value="2">2 - Poco útil</option>
+        <option value="1">1 - Nada útil</option>
+      </select>
+    </div>
+
+    <div class="survey-row">
+      <label>¿Preferirías usar Alexa con este sistema?</label>
+      <select id="surveyPreferred">
+        <option value="true">Sí</option>
+        <option value="false">No</option>
+      </select>
+    </div>
+
+    <div class="survey-row">
+      <label>¿Qué IA te gustó más?</label>
+      <select id="surveyBestAi">
+        <option value="auto">Auto</option>
+        <option value="chatgpt">ChatGPT</option>
+        <option value="groq_fast">Groq rápido</option>
+        <option value="groq_power">Groq potente</option>
+        <option value="gemini">Gemini</option>
+      </select>
+    </div>
+
+    <div class="survey-row">
+      <label>Comentario opcional</label>
+      <textarea id="surveyComments" placeholder="Escribe algún comentario..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="secondary" onclick="dismissSurvey()">Después</button>
+      <button class="primary" onclick="submitSurvey()">Enviar encuesta</button>
+    </div>
+  </div>
+</div>
+
 <script>
-const API = "http://localhost:3000";
+const API =
+  window.location.origin && window.location.origin.startsWith("http")
+    ? window.location.origin
+    : "http://localhost:3000";
 
 let conversation_id = null;
 let token = localStorage.getItem("token");
@@ -360,7 +615,14 @@ const msgInput = document.getElementById("msg");
 const sendBtn = document.getElementById("sendBtn");
 const iaSelect = document.getElementById("iaSelect");
 const providerLabel = document.getElementById("providerLabel");
+
 const alexaCodeBox = document.getElementById("alexaCode");
+const alexaStatusBadge = document.getElementById("alexaStatusBadge");
+const alexaHelp = document.getElementById("alexaHelp");
+const generateCodeBtn = document.getElementById("generateCodeBtn");
+const unlinkAlexaBtn = document.getElementById("unlinkAlexaBtn");
+
+const surveyModal = document.getElementById("surveyModal");
 
 function getProviderName(value) {
   const names = {
@@ -384,8 +646,29 @@ function getSourceName(value) {
   return names[value] || "🌐 Web";
 }
 
+function authHeaders(extra = {}) {
+  return {
+    ...extra,
+    "Authorization": token
+  };
+}
+
 function updateProviderLabel() {
   providerLabel.innerText = getProviderName(iaSelect.value);
+}
+
+function showEmptyState() {
+  chat.innerHTML = `
+    <div class="empty-state">
+      <h2>Bienvenido bro 🔥</h2>
+      <p>Escribe una pregunta desde la web o vincula Alexa para que todo lo que preguntes por voz aparezca aquí.</p>
+    </div>
+  `;
+}
+
+function clearEmptyState() {
+  const empty = chat.querySelector(".empty-state");
+  if (empty) empty.remove();
 }
 
 /* ================= LOGIN ================= */
@@ -398,20 +681,24 @@ async function login() {
     return;
   }
 
-  const res = await fetch(API + "/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password })
-  });
+  try {
+    const res = await fetch(API + "/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (data.token) {
-    localStorage.setItem("token", data.token);
-    token = data.token;
-    startApp();
-  } else {
-    alert(data.error || "Error login");
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+      token = data.token;
+      startApp();
+    } else {
+      alert(data.error || "Error login");
+    }
+  } catch (error) {
+    alert("No se pudo conectar con el servidor.");
   }
 }
 
@@ -425,18 +712,22 @@ async function register() {
     return;
   }
 
-  const res = await fetch(API + "/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password })
-  });
+  try {
+    const res = await fetch(API + "/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (data.ok) {
-    alert("Usuario creado. Ahora inicia sesión.");
-  } else {
-    alert(data.error || "Error al registrar");
+    if (data.ok) {
+      alert("Usuario creado. Ahora inicia sesión.");
+    } else {
+      alert(data.error || "Error al registrar");
+    }
+  } catch (error) {
+    alert("No se pudo conectar con el servidor.");
   }
 }
 
@@ -451,22 +742,118 @@ function startApp() {
   loginScreen.style.display = "none";
   app.style.display = "flex";
   updateProviderLabel();
+  showEmptyState();
   loadMe();
+  loadAlexaStatus();
   loadChats();
+  checkSurveyStatus();
 }
 
 /* ================= USER INFO ================= */
 async function loadMe() {
-  const res = await fetch(API + "/me", {
-    headers: { "Authorization": token }
-  });
+  try {
+    const res = await fetch(API + "/me", {
+      headers: authHeaders()
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (data.alexa_code) {
-    alexaCodeBox.innerText = data.alexa_code;
-  } else {
-    alexaCodeBox.innerText = "Sin código";
+    if (data.error) {
+      logout();
+      return;
+    }
+  } catch (error) {
+    console.log("Error loadMe:", error);
+  }
+}
+
+/* ================= ALEXA STATUS ================= */
+async function loadAlexaStatus() {
+  try {
+    const res = await fetch(API + "/alexa/status", {
+      headers: authHeaders()
+    });
+
+    const data = await res.json();
+
+    if (data.linked) {
+      alexaStatusBadge.innerText = "Vinculada";
+      alexaStatusBadge.className = "alexa-status status-linked";
+      alexaCodeBox.innerText = "OK";
+      alexaHelp.innerText = "Tu Alexa ya está vinculada. Puedes decir: pregunta qué es una API, o usa groq rápido.";
+      unlinkAlexaBtn.disabled = false;
+    } else {
+      alexaStatusBadge.innerText = "No vinculada";
+      alexaStatusBadge.className = "alexa-status status-unlinked";
+      unlinkAlexaBtn.disabled = true;
+
+      if (data.active_pair_code) {
+        alexaCodeBox.innerText = data.active_pair_code.code;
+        alexaHelp.innerText = "Dile a Alexa: mi código es " + data.active_pair_code.code + ". Luego confirma diciendo sí.";
+      } else {
+        alexaCodeBox.innerText = "------";
+        alexaHelp.innerText = "Genera un código temporal y dile a Alexa: mi código es, seguido de los seis números.";
+      }
+    }
+  } catch (error) {
+    alexaStatusBadge.innerText = "Error";
+    alexaStatusBadge.className = "alexa-status status-unlinked";
+    alexaHelp.innerText = "No se pudo cargar el estado de Alexa.";
+  }
+}
+
+async function generateAlexaCode() {
+  generateCodeBtn.disabled = true;
+  generateCodeBtn.innerText = "Generando...";
+
+  try {
+    const res = await fetch(API + "/alexa/generate-code", {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({})
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      alexaCodeBox.innerText = data.code;
+      alexaStatusBadge.innerText = "Código activo";
+      alexaStatusBadge.className = "alexa-status status-unlinked";
+      alexaHelp.innerText = "Ahora dile a Alexa: mi código es " + data.code + ". Después Alexa te pedirá confirmar diciendo sí.";
+      alert("Código generado: " + data.code);
+    } else {
+      alert(data.error || "No se pudo generar código");
+    }
+
+    loadAlexaStatus();
+  } catch (error) {
+    alert("No se pudo conectar con el servidor.");
+  } finally {
+    generateCodeBtn.disabled = false;
+    generateCodeBtn.innerText = "Generar código";
+  }
+}
+
+async function unlinkAlexa() {
+  const ok = confirm("¿Seguro que quieres desvincular Alexa de esta cuenta?");
+  if (!ok) return;
+
+  try {
+    const res = await fetch(API + "/alexa/unlink", {
+      method: "DELETE",
+      headers: authHeaders()
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      alert("Alexa desvinculada correctamente.");
+      loadAlexaStatus();
+    } else {
+      alert(data.error || "No se pudo desvincular Alexa.");
+    }
+  } catch (error) {
+    alert("No se pudo conectar con el servidor.");
   }
 }
 
@@ -477,6 +864,7 @@ async function send() {
 
   if (!mensaje) return;
 
+  clearEmptyState();
   addMsg("user", mensaje, "", "web");
 
   msgInput.value = "";
@@ -486,10 +874,7 @@ async function send() {
   try {
     const res = await fetch(API + "/preguntar", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": token
-      },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         mensaje,
         conversation_id,
@@ -509,6 +894,7 @@ async function send() {
     addMsg("ai", data.respuesta, data.ia_nombre || getProviderName(data.ia), data.source || "web");
 
     loadChats();
+    checkSurveyStatus();
 
   } catch (error) {
     addMsg("ai", "No se pudo conectar con el servidor.", "Error", "web");
@@ -521,6 +907,8 @@ async function send() {
 
 /* ================= UI ================= */
 function addMsg(role, text, iaName = "", source = "web") {
+  clearEmptyState();
+
   const div = document.createElement("div");
   div.className = "msg " + role;
 
@@ -546,65 +934,78 @@ function addMsg(role, text, iaName = "", source = "web") {
 
 /* ================= LOAD CHATS ================= */
 async function loadChats() {
-  const res = await fetch(API + "/conversaciones", {
-    headers: { "Authorization": token }
-  });
+  try {
+    const res = await fetch(API + "/conversaciones", {
+      headers: authHeaders()
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  historyBox.innerHTML = "";
+    historyBox.innerHTML = "";
 
-  if (!Array.isArray(data)) return;
+    if (!Array.isArray(data)) return;
 
-  data.forEach(c => {
-    const div = document.createElement("div");
-    div.className = "chat-item";
+    data.forEach(c => {
+      const div = document.createElement("div");
+      div.className = "chat-item";
 
-    const source = document.createElement("span");
-    source.className = "chat-source";
-    source.innerText = getSourceName(c.source);
+      const source = document.createElement("span");
+      source.className = "chat-source";
+      source.innerText = getSourceName(c.source);
 
-    const title = document.createElement("div");
-    title.innerText = c.titulo || "Chat sin título";
+      const title = document.createElement("div");
+      title.innerText = c.titulo || "Chat sin título";
 
-    div.appendChild(source);
-    div.appendChild(title);
+      div.appendChild(source);
+      div.appendChild(title);
 
-    div.onclick = () => openChat(c.conversation_id);
+      div.onclick = () => openChat(c.conversation_id);
 
-    historyBox.appendChild(div);
-  });
+      historyBox.appendChild(div);
+    });
+  } catch (error) {
+    console.log("Error loadChats:", error);
+  }
 }
 
 /* ================= OPEN CHAT ================= */
 async function openChat(id) {
   conversation_id = id;
 
-  const res = await fetch(API + "/historial/" + id, {
-    headers: { "Authorization": token }
-  });
+  try {
+    const res = await fetch(API + "/historial/" + id, {
+      headers: authHeaders()
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  chat.innerHTML = "";
+    chat.innerHTML = "";
 
-  if (!Array.isArray(data)) return;
+    if (!Array.isArray(data)) {
+      showEmptyState();
+      return;
+    }
 
-  data.forEach(m => {
-    const iaName = m.role === "ai" ? getProviderName(m.ia) : "";
-    addMsg(
-      m.role === "user" ? "user" : "ai",
-      m.mensaje,
-      iaName,
-      m.source || "web"
-    );
-  });
+    data.forEach(m => {
+      const iaName = m.role === "ai" ? getProviderName(m.ia) : "";
+      addMsg(
+        m.role === "user" ? "user" : "ai",
+        m.mensaje,
+        iaName,
+        m.source || "web"
+      );
+    });
+  } catch (error) {
+    chat.innerHTML = "";
+    addMsg("ai", "No se pudo cargar el historial.", "Error", "web");
+  }
 }
 
 /* ================= NEW CHAT ================= */
 function nuevoChat() {
   conversation_id = null;
   chat.innerHTML = "";
+  showEmptyState();
   msgInput.focus();
 }
 
@@ -612,6 +1013,67 @@ function nuevoChat() {
 function handleKey(event) {
   if (event.key === "Enter") {
     send();
+  }
+}
+
+/* ================= SURVEY ================= */
+async function checkSurveyStatus() {
+  try {
+    const res = await fetch(API + "/survey/status", {
+      headers: authHeaders()
+    });
+
+    const data = await res.json();
+
+    if (data.should_show) {
+      surveyModal.style.display = "flex";
+    }
+  } catch (error) {
+    console.log("No se pudo revisar encuesta:", error);
+  }
+}
+
+async function dismissSurvey() {
+  try {
+    await fetch(API + "/survey/dismiss", {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({})
+    });
+  } catch (error) {
+    console.log("No se pudo posponer encuesta:", error);
+  }
+
+  surveyModal.style.display = "none";
+}
+
+async function submitSurvey() {
+  const payload = {
+    clarity: Number(document.getElementById("surveyClarity").value),
+    completeness: Number(document.getElementById("surveyCompleteness").value),
+    usefulness: Number(document.getElementById("surveyUsefulness").value),
+    preferred_use: document.getElementById("surveyPreferred").value === "true",
+    best_ai: document.getElementById("surveyBestAi").value,
+    comments: document.getElementById("surveyComments").value.trim()
+  };
+
+  try {
+    const res = await fetch(API + "/survey/submit", {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      alert("Gracias por responder la encuesta.");
+      surveyModal.style.display = "none";
+    } else {
+      alert(data.error || "No se pudo guardar la encuesta.");
+    }
+  } catch (error) {
+    alert("No se pudo conectar con el servidor.");
   }
 }
 
