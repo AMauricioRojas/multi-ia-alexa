@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Multi IA PRO</title>
+<title>Laboratorio Naranja | Multi IA</title>
 
 <style>
 * {
@@ -14,6 +14,10 @@ body {
   font-family: Arial, sans-serif;
   height: 100vh;
   background: #0f172a;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 /* LOGIN */
@@ -29,7 +33,7 @@ body {
 }
 
 .login-card {
-  width: 370px;
+  width: 380px;
   background: #111827;
   padding: 28px;
   border-radius: 18px;
@@ -37,7 +41,7 @@ body {
 }
 
 .login-card h2 {
-  margin-top: 0;
+  margin: 0;
   text-align: center;
 }
 
@@ -45,6 +49,7 @@ body {
   color: #94a3b8;
   font-size: 14px;
   text-align: center;
+  line-height: 1.5;
 }
 
 .login-card input {
@@ -106,7 +111,7 @@ button:disabled {
 
 /* SIDEBAR */
 .sidebar {
-  width: 340px;
+  width: 360px;
   background: #020617;
   color: white;
   display: flex;
@@ -123,11 +128,12 @@ button:disabled {
   margin: 0 0 12px 0;
 }
 
+/* ALEXA CARD */
 .alexa-card {
   background: #111827;
   border: 1px solid #1f2937;
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 13px;
   margin-bottom: 12px;
 }
 
@@ -143,6 +149,7 @@ button:disabled {
   padding: 4px 8px;
   border-radius: 999px;
   margin: 6px 0 8px 0;
+  font-weight: bold;
 }
 
 .status-linked {
@@ -155,29 +162,40 @@ button:disabled {
   color: #991b1b;
 }
 
+.status-code {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .alexa-code {
   margin-top: 6px;
   font-weight: bold;
   color: #38bdf8;
-  font-size: 24px;
-  letter-spacing: 2px;
+  font-size: 27px;
+  letter-spacing: 3px;
+}
+
+.alexa-countdown {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #fbbf24;
 }
 
 .alexa-help {
   font-size: 12px;
   color: #cbd5e1;
   margin-top: 8px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .alexa-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 10px;
 }
 
 .alexa-actions button {
-  flex: 1;
   border: none;
   padding: 9px;
   border-radius: 9px;
@@ -195,6 +213,7 @@ button:disabled {
   border-radius: 10px;
   cursor: pointer;
   margin-bottom: 10px;
+  font-weight: bold;
 }
 
 .provider-select {
@@ -206,6 +225,32 @@ button:disabled {
   border: 1px solid #374151;
 }
 
+/* FILTERS */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 10px;
+  border-bottom: 1px solid #1f2937;
+}
+
+.filter-btn {
+  padding: 7px 5px;
+  font-size: 12px;
+  border: 1px solid #1f2937;
+  background: #111827;
+  color: #cbd5e1;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.filter-btn.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+/* CHAT LIST */
 .chat-list {
   flex: 1;
   overflow-y: auto;
@@ -220,17 +265,36 @@ button:disabled {
   border-radius: 10px;
   font-size: 14px;
   color: #e5e7eb;
+  border: 1px solid transparent;
 }
 
 .chat-item:hover {
   background: #1f2937;
 }
 
+.chat-item.active {
+  border-color: #38bdf8;
+}
+
 .chat-source {
-  display: block;
+  display: inline-block;
   font-size: 11px;
   color: #94a3b8;
   margin-bottom: 4px;
+}
+
+.chat-date {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 5px;
+}
+
+.no-chats {
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 20px;
 }
 
 .sidebar-bottom {
@@ -246,6 +310,7 @@ button:disabled {
   padding: 10px;
   border-radius: 10px;
   cursor: pointer;
+  font-weight: bold;
 }
 
 /* MAIN */
@@ -257,12 +322,19 @@ button:disabled {
 }
 
 .header {
-  min-height: 58px;
+  min-height: 60px;
   border-bottom: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 0 20px;
   background: white;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .header-title {
@@ -270,9 +342,18 @@ button:disabled {
 }
 
 .header-provider {
-  margin-left: 10px;
   color: #64748b;
   font-size: 14px;
+}
+
+.header-actions button {
+  border: none;
+  background: #e2e8f0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
 }
 
 .chat-box {
@@ -287,10 +368,18 @@ button:disabled {
   margin: auto;
   text-align: center;
   color: #64748b;
-  max-width: 500px;
+  max-width: 560px;
+  line-height: 1.6;
 }
 
 .empty-state h2 {
+  color: #0f172a;
+}
+
+.empty-state code {
+  background: #e2e8f0;
+  padding: 3px 6px;
+  border-radius: 6px;
   color: #0f172a;
 }
 
@@ -335,6 +424,13 @@ button:disabled {
   background: #dcfce7;
   color: #166534;
   margin-bottom: 6px;
+}
+
+.msg-time {
+  display: block;
+  margin-top: 7px;
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .input-area {
@@ -431,18 +527,25 @@ button:disabled {
   font-weight: bold;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 850px) {
   .app {
     flex-direction: column;
   }
 
   .sidebar {
     width: 100%;
-    max-height: 45vh;
+    max-height: 48vh;
   }
 
   .msg {
     max-width: 92%;
+  }
+
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
   }
 }
 </style>
@@ -453,8 +556,8 @@ button:disabled {
 <!-- LOGIN -->
 <div id="loginScreen" class="login">
   <div class="login-card">
-    <h2>🔐 Multi IA PRO</h2>
-    <p>Inicia sesión para ver tus chats de Web, Alexa y pronto móvil.</p>
+    <h2>🍊 Laboratorio Naranja</h2>
+    <p>Conecta Alexa con múltiples modelos de IA y consulta después tu historial desde web o móvil.</p>
     <input id="email" placeholder="Email o usuario">
     <input id="password" type="password" placeholder="Password">
     <button class="primary" onclick="login()">Entrar</button>
@@ -475,13 +578,16 @@ button:disabled {
 
         <small>Código temporal para vincular:</small>
         <div id="alexaCode" class="alexa-code">------</div>
+        <div id="alexaCountdown" class="alexa-countdown"></div>
 
         <div id="alexaHelp" class="alexa-help">
           Genera un código y dile a Alexa: “mi código es...” Después confirma diciendo “sí”.
         </div>
 
         <div class="alexa-actions">
-          <button id="generateCodeBtn" class="success" onclick="generateAlexaCode()">Generar código</button>
+          <button id="generateCodeBtn" class="success" onclick="generateAlexaCode()">Generar</button>
+          <button class="secondary" onclick="copyAlexaInstructions()">Copiar</button>
+          <button class="warning" onclick="loadAlexaStatus()">Refrescar</button>
           <button id="unlinkAlexaBtn" class="danger" onclick="unlinkAlexa()">Desvincular</button>
         </div>
       </div>
@@ -497,6 +603,13 @@ button:disabled {
       </select>
     </div>
 
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">Todos</button>
+      <button class="filter-btn" data-filter="web" onclick="setFilter('web')">Web</button>
+      <button class="filter-btn" data-filter="alexa" onclick="setFilter('alexa')">Alexa</button>
+      <button class="filter-btn" data-filter="mobile" onclick="setFilter('mobile')">Móvil</button>
+    </div>
+
     <div id="history" class="chat-list"></div>
 
     <div class="sidebar-bottom">
@@ -506,16 +619,17 @@ button:disabled {
 
   <main class="main">
     <div class="header">
-      <span class="header-title">🤖 Panel Multi IA + Alexa</span>
-      <span id="providerLabel" class="header-provider">Auto gratis/rápido</span>
-    </div>
+      <div class="header-left">
+        <span class="header-title">🤖 Panel Multi IA + Alexa</span>
+        <span id="providerLabel" class="header-provider">Auto gratis/rápido</span>
+      </div>
 
-    <div id="chat" class="chat-box">
-      <div class="empty-state">
-        <h2>Bienvenido bro 🔥</h2>
-        <p>Escribe una pregunta desde la web o vincula Alexa para que todo lo que preguntes por voz aparezca aquí.</p>
+      <div class="header-actions">
+        <button onclick="showSurveyDemo()">Probar encuesta</button>
       </div>
     </div>
+
+    <div id="chat" class="chat-box"></div>
 
     <div class="input-area">
       <input id="msg" placeholder="Escribe tu mensaje..." onkeydown="handleKey(event)">
@@ -600,12 +714,17 @@ button:disabled {
 
 <script>
 const API =
-  window.location.origin && window.location.origin.startsWith("http")
-    ? window.location.origin
-    : "http://localhost:3000";
+  window.location.protocol === "file:"
+    ? "http://localhost:3000"
+    : window.location.origin;
 
 let conversation_id = null;
 let token = localStorage.getItem("token");
+
+let allChats = [];
+let currentFilter = "all";
+let pairExpiresAt = null;
+let pairTimer = null;
 
 const loginScreen = document.getElementById("loginScreen");
 const app = document.getElementById("app");
@@ -618,6 +737,7 @@ const providerLabel = document.getElementById("providerLabel");
 
 const alexaCodeBox = document.getElementById("alexaCode");
 const alexaStatusBadge = document.getElementById("alexaStatusBadge");
+const alexaCountdown = document.getElementById("alexaCountdown");
 const alexaHelp = document.getElementById("alexaHelp");
 const generateCodeBtn = document.getElementById("generateCodeBtn");
 const unlinkAlexaBtn = document.getElementById("unlinkAlexaBtn");
@@ -657,11 +777,38 @@ function updateProviderLabel() {
   providerLabel.innerText = getProviderName(iaSelect.value);
 }
 
+function formatDateTime(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleString("es-MX", {
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+}
+
+function dateFromConversationId(id) {
+  const text = String(id || "");
+  const parts = text.split("-");
+  const maybeTimestamp = Number(parts[parts.length - 1]);
+
+  if (!Number.isFinite(maybeTimestamp)) return "";
+
+  return formatDateTime(maybeTimestamp);
+}
+
 function showEmptyState() {
   chat.innerHTML = `
     <div class="empty-state">
       <h2>Bienvenido bro 🔥</h2>
-      <p>Escribe una pregunta desde la web o vincula Alexa para que todo lo que preguntes por voz aparezca aquí.</p>
+      <p>
+        Ya puedes usar Laboratorio Naranja desde la web o desde Alexa.
+        Para Alexa, genera un código temporal, di <code>mi código es 123456</code>,
+        confirma con <code>sí</code> y después pregunta naturalmente.
+      </p>
     </div>
   `;
 }
@@ -760,7 +907,6 @@ async function loadMe() {
 
     if (data.error) {
       logout();
-      return;
     }
   } catch (error) {
     console.log("Error loadMe:", error);
@@ -777,29 +923,80 @@ async function loadAlexaStatus() {
     const data = await res.json();
 
     if (data.linked) {
+      pairExpiresAt = null;
+      stopPairTimer();
+
       alexaStatusBadge.innerText = "Vinculada";
       alexaStatusBadge.className = "alexa-status status-linked";
       alexaCodeBox.innerText = "OK";
-      alexaHelp.innerText = "Tu Alexa ya está vinculada. Puedes decir: pregunta qué es una API, o usa groq rápido.";
+      alexaCountdown.innerText = "";
+      alexaHelp.innerText = "Tu Alexa ya está vinculada. Puedes decir: “pregunta qué es una API” o “usa groq rápido”.";
       unlinkAlexaBtn.disabled = false;
+      return;
+    }
+
+    unlinkAlexaBtn.disabled = true;
+
+    if (data.active_pair_code) {
+      pairExpiresAt = data.active_pair_code.expires_at;
+
+      alexaStatusBadge.innerText = "Código activo";
+      alexaStatusBadge.className = "alexa-status status-code";
+      alexaCodeBox.innerText = data.active_pair_code.code;
+      alexaHelp.innerText = "Dile a Alexa: “mi código es " + data.active_pair_code.code + "”. Luego confirma diciendo “sí”.";
+      startPairTimer();
     } else {
+      pairExpiresAt = null;
+      stopPairTimer();
+
       alexaStatusBadge.innerText = "No vinculada";
       alexaStatusBadge.className = "alexa-status status-unlinked";
-      unlinkAlexaBtn.disabled = true;
-
-      if (data.active_pair_code) {
-        alexaCodeBox.innerText = data.active_pair_code.code;
-        alexaHelp.innerText = "Dile a Alexa: mi código es " + data.active_pair_code.code + ". Luego confirma diciendo sí.";
-      } else {
-        alexaCodeBox.innerText = "------";
-        alexaHelp.innerText = "Genera un código temporal y dile a Alexa: mi código es, seguido de los seis números.";
-      }
+      alexaCodeBox.innerText = "------";
+      alexaCountdown.innerText = "";
+      alexaHelp.innerText = "Genera un código temporal y dile a Alexa: “mi código es”, seguido de los seis números.";
     }
   } catch (error) {
     alexaStatusBadge.innerText = "Error";
     alexaStatusBadge.className = "alexa-status status-unlinked";
     alexaHelp.innerText = "No se pudo cargar el estado de Alexa.";
   }
+}
+
+function startPairTimer() {
+  stopPairTimer();
+
+  updatePairCountdown();
+
+  pairTimer = setInterval(updatePairCountdown, 1000);
+}
+
+function stopPairTimer() {
+  if (pairTimer) {
+    clearInterval(pairTimer);
+    pairTimer = null;
+  }
+}
+
+function updatePairCountdown() {
+  if (!pairExpiresAt) {
+    alexaCountdown.innerText = "";
+    return;
+  }
+
+  const expires = new Date(pairExpiresAt).getTime();
+  const now = Date.now();
+  const diff = expires - now;
+
+  if (diff <= 0) {
+    alexaCountdown.innerText = "Código expirado. Genera uno nuevo.";
+    stopPairTimer();
+    return;
+  }
+
+  const minutes = Math.floor(diff / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+
+  alexaCountdown.innerText = `Expira en ${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 async function generateAlexaCode() {
@@ -817,9 +1014,11 @@ async function generateAlexaCode() {
 
     if (data.ok) {
       alexaCodeBox.innerText = data.code;
+      pairExpiresAt = data.expires_at;
       alexaStatusBadge.innerText = "Código activo";
-      alexaStatusBadge.className = "alexa-status status-unlinked";
-      alexaHelp.innerText = "Ahora dile a Alexa: mi código es " + data.code + ". Después Alexa te pedirá confirmar diciendo sí.";
+      alexaStatusBadge.className = "alexa-status status-code";
+      alexaHelp.innerText = "Ahora dile a Alexa: “mi código es " + data.code + "”. Después Alexa te pedirá confirmar diciendo “sí”.";
+      startPairTimer();
       alert("Código generado: " + data.code);
     } else {
       alert(data.error || "No se pudo generar código");
@@ -830,8 +1029,24 @@ async function generateAlexaCode() {
     alert("No se pudo conectar con el servidor.");
   } finally {
     generateCodeBtn.disabled = false;
-    generateCodeBtn.innerText = "Generar código";
+    generateCodeBtn.innerText = "Generar";
   }
+}
+
+function copyAlexaInstructions() {
+  const code = alexaCodeBox.innerText.trim();
+
+  let text = "Alexa, abre laboratorio naranja.";
+
+  if (code && code !== "------" && code !== "OK") {
+    text += " Luego di: mi código es " + code + ". Después confirma diciendo: sí.";
+  } else {
+    text += " Si no está vinculada, genera un código temporal desde la web.";
+  }
+
+  navigator.clipboard?.writeText(text)
+    .then(() => alert("Instrucciones copiadas."))
+    .catch(() => prompt("Copia estas instrucciones:", text));
 }
 
 async function unlinkAlexa() {
@@ -857,6 +1072,62 @@ async function unlinkAlexa() {
   }
 }
 
+/* ================= FILTERS ================= */
+function setFilter(filter) {
+  currentFilter = filter;
+
+  document.querySelectorAll(".filter-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.filter === filter);
+  });
+
+  renderChatList();
+}
+
+function renderChatList() {
+  historyBox.innerHTML = "";
+
+  const filtered =
+    currentFilter === "all"
+      ? allChats
+      : allChats.filter(c => (c.source || "web") === currentFilter);
+
+  if (filtered.length === 0) {
+    historyBox.innerHTML = `<div class="no-chats">No hay chats en este filtro.</div>`;
+    return;
+  }
+
+  filtered.forEach(c => {
+    const div = document.createElement("div");
+    div.className = "chat-item";
+
+    if (c.conversation_id === conversation_id) {
+      div.classList.add("active");
+    }
+
+    const source = document.createElement("span");
+    source.className = "chat-source";
+    source.innerText = getSourceName(c.source);
+
+    const title = document.createElement("div");
+    title.innerText = c.titulo || "Chat sin título";
+
+    const date = document.createElement("span");
+    date.className = "chat-date";
+    date.innerText = dateFromConversationId(c.conversation_id);
+
+    div.appendChild(source);
+    div.appendChild(title);
+
+    if (date.innerText) {
+      div.appendChild(date);
+    }
+
+    div.onclick = () => openChat(c.conversation_id);
+
+    historyBox.appendChild(div);
+  });
+}
+
 /* ================= SEND WEB ================= */
 async function send() {
   const mensaje = msgInput.value.trim();
@@ -865,7 +1136,7 @@ async function send() {
   if (!mensaje) return;
 
   clearEmptyState();
-  addMsg("user", mensaje, "", "web");
+  addMsg("user", mensaje, "", "web", new Date().toISOString());
 
   msgInput.value = "";
   sendBtn.disabled = true;
@@ -885,19 +1156,25 @@ async function send() {
     const data = await res.json();
 
     if (data.error) {
-      addMsg("ai", data.error, "Error", "web");
+      addMsg("ai", data.error, "Error", "web", new Date().toISOString());
       return;
     }
 
     conversation_id = data.conversation_id;
 
-    addMsg("ai", data.respuesta, data.ia_nombre || getProviderName(data.ia), data.source || "web");
+    addMsg(
+      "ai",
+      data.respuesta,
+      data.ia_nombre || getProviderName(data.ia),
+      data.source || "web",
+      new Date().toISOString()
+    );
 
     loadChats();
     checkSurveyStatus();
 
   } catch (error) {
-    addMsg("ai", "No se pudo conectar con el servidor.", "Error", "web");
+    addMsg("ai", "No se pudo conectar con el servidor.", "Error", "web", new Date().toISOString());
   } finally {
     sendBtn.disabled = false;
     sendBtn.innerText = "Enviar";
@@ -906,7 +1183,7 @@ async function send() {
 }
 
 /* ================= UI ================= */
-function addMsg(role, text, iaName = "", source = "web") {
+function addMsg(role, text, iaName = "", source = "web", createdAt = "") {
   clearEmptyState();
 
   const div = document.createElement("div");
@@ -928,6 +1205,11 @@ function addMsg(role, text, iaName = "", source = "web") {
   content.innerText = text;
   div.appendChild(content);
 
+  const time = document.createElement("span");
+  time.className = "msg-time";
+  time.innerText = formatDateTime(createdAt);
+  if (time.innerText) div.appendChild(time);
+
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
@@ -941,28 +1223,10 @@ async function loadChats() {
 
     const data = await res.json();
 
-    historyBox.innerHTML = "";
-
     if (!Array.isArray(data)) return;
 
-    data.forEach(c => {
-      const div = document.createElement("div");
-      div.className = "chat-item";
-
-      const source = document.createElement("span");
-      source.className = "chat-source";
-      source.innerText = getSourceName(c.source);
-
-      const title = document.createElement("div");
-      title.innerText = c.titulo || "Chat sin título";
-
-      div.appendChild(source);
-      div.appendChild(title);
-
-      div.onclick = () => openChat(c.conversation_id);
-
-      historyBox.appendChild(div);
-    });
+    allChats = data;
+    renderChatList();
   } catch (error) {
     console.log("Error loadChats:", error);
   }
@@ -992,12 +1256,15 @@ async function openChat(id) {
         m.role === "user" ? "user" : "ai",
         m.mensaje,
         iaName,
-        m.source || "web"
+        m.source || "web",
+        m.created_at
       );
     });
+
+    renderChatList();
   } catch (error) {
     chat.innerHTML = "";
-    addMsg("ai", "No se pudo cargar el historial.", "Error", "web");
+    addMsg("ai", "No se pudo cargar el historial.", "Error", "web", new Date().toISOString());
   }
 }
 
@@ -1006,6 +1273,7 @@ function nuevoChat() {
   conversation_id = null;
   chat.innerHTML = "";
   showEmptyState();
+  renderChatList();
   msgInput.focus();
 }
 
@@ -1017,6 +1285,10 @@ function handleKey(event) {
 }
 
 /* ================= SURVEY ================= */
+function showSurveyDemo() {
+  surveyModal.style.display = "flex";
+}
+
 async function checkSurveyStatus() {
   try {
     const res = await fetch(API + "/survey/status", {
