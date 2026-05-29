@@ -941,7 +941,7 @@ app.post("/preguntar", auth, async (req, res) => {
       mensaje,
       provider,
       conversation_id,
-      source: "web",
+      source: req.body.source === "mobile" ? "mobile" : "web",
       alexaMode: false
     });
 
