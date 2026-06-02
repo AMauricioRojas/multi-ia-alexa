@@ -47,7 +47,17 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
+    app: "Nexo IA",
     message: "Servidor activo",
+    time: new Date().toISOString()
+  });
+});
+
+app.get("/keep-alive", (req, res) => {
+  res.json({
+    ok: true,
+    app: "Nexo IA",
+    message: "Keep alive recibido",
     time: new Date().toISOString()
   });
 });
@@ -1475,6 +1485,35 @@ async function startServer() {
     console.error("❌ ERROR INICIANDO SERVIDOR:", error);
     process.exit(1);
   }
+}
+/* =========================
+   KEEP ALIVE OPCIONAL
+   Actívalo en Render con:
+   ENABLE_SELF_PING=true
+   PUBLIC_URL=https://multi-ia-alexa-backend.onrender.com
+========================= */
+function startKeepAlive() {
+  const enabled = process.env.ENABLE_SELF_PING === "true";
+  const publicUrl = process.env.PUBLIC_URL;
+
+  if (!enabled || !publicUrl) {
+    console.log("ℹ️ Keep alive desactivado");
+    return;
+  }
+
+  const intervalMinutes = Number(process.env.SELF_PING_MINUTES || 10);
+  const intervalMs = intervalMinutes * 60 * 1000;
+
+  console.log(`✅ Keep alive activo cada ${intervalMinutes} minutos`);
+
+  setInterval(async () => {
+    try {
+      const response = await fetch(`${publicUrl}/keep-alive`);
+      console.log(`[KEEP-ALIVE] ${response.status} ${new Date().toISOString()}`);
+    } catch (error) {
+      console.log("[KEEP-ALIVE ERROR]", error.message);
+    }
+  }, intervalMs);
 }
 
 startServer();

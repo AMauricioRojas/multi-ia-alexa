@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Laboratorio Naranja | Multi IA</title>
+<title>Nexo IA | Multi IA</title>
 
 <style>
 * {
@@ -556,7 +556,7 @@ button:disabled {
 <!-- LOGIN -->
 <div id="loginScreen" class="login">
   <div class="login-card">
-    <h2>🍊 Laboratorio Naranja</h2>
+    <h2>Nexo IA</h2>
     <p>Conecta Alexa con múltiples modelos de IA y consulta después tu historial desde web o móvil.</p>
     <input id="email" placeholder="Email o usuario">
     <input id="password" type="password" placeholder="Password">
@@ -805,7 +805,7 @@ function showEmptyState() {
     <div class="empty-state">
       <h2>Bienvenido bro 🔥</h2>
       <p>
-        Ya puedes usar Laboratorio Naranja desde la web o desde Alexa.
+        Ya puedes usar Nexo IA desde la web o desde Alexa.
         Para Alexa, genera un código temporal, di <code>mi código es 123456</code>,
         confirma con <code>sí</code> y después pregunta naturalmente.
       </p>
@@ -1036,7 +1036,7 @@ async function generateAlexaCode() {
 function copyAlexaInstructions() {
   const code = alexaCodeBox.innerText.trim();
 
-  let text = "Alexa, abre laboratorio naranja.";
+  let text = "Alexa, abre Nexo IA.";
 
   if (code && code !== "------" && code !== "OK") {
     text += " Luego di: mi código es " + code + ". Después confirma diciendo: sí.";
