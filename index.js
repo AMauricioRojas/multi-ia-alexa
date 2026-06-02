@@ -126,6 +126,21 @@ async function initDatabase() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS alexa_pair_attempts (
+      id SERIAL PRIMARY KEY,
+      alexa_user_id TEXT NOT NULL,
+      attempted_code TEXT,
+      success BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_alexa_pair_attempts_user_time
+    ON alexa_pair_attempts (alexa_user_id, created_at);
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS survey_feedback (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -244,7 +259,7 @@ function normalizeSpokenIA(value) {
 function maskEmail(email) {
   const clean = String(email || "");
 
-  if (!clean.includes("@")) return "tu cuenta";
+  if (!clean.includes("@")) return "registrada";
 
   const [name, domain] = clean.split("@");
 
@@ -258,6 +273,46 @@ function maskEmail(email) {
 
 function generatePairCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+
+async function getAlexaFailedAttempts(alexaUserId) {
+  const result = await pool.query(
+    `SELECT COUNT(*)::int AS total
+     FROM alexa_pair_attempts
+     WHERE alexa_user_id=$1
+       AND success=false
+       AND created_at > CURRENT_TIMESTAMP - INTERVAL '10 minutes'`,
+    [alexaUserId]
+  );
+
+  return result.rows[0]?.total || 0;
+}
+
+async function canTryAlexaPairCode(alexaUserId) {
+  const failedAttempts = await getAlexaFailedAttempts(alexaUserId);
+
+  return {
+    allowed: failedAttempts < 5,
+    failedAttempts,
+    remaining: Math.max(0, 5 - failedAttempts)
+  };
+}
+
+async function registerAlexaPairAttempt({ alexaUserId, attemptedCode, success }) {
+  await pool.query(
+    `INSERT INTO alexa_pair_attempts (alexa_user_id, attempted_code, success)
+     VALUES ($1, $2, $3)`,
+    [alexaUserId, attemptedCode || "", success]
+  );
+}
+
+async function clearAlexaPairAttempts(alexaUserId) {
+  await pool.query(
+    `DELETE FROM alexa_pair_attempts
+     WHERE alexa_user_id=$1`,
+    [alexaUserId]
+  );
 }
 
 /* =========================
@@ -1208,6 +1263,14 @@ async function completeAlexaPairing({ alexaUserId, code }) {
     [pair.code_id]
   );
 
+  await registerAlexaPairAttempt({
+    alexaUserId,
+    attemptedCode: code,
+    success: true
+  });
+
+  await clearAlexaPairAttempts(alexaUserId);
+
   return {
     ok: true,
     email: pair.email,
@@ -1230,7 +1293,7 @@ app.post("/alexa/skill", async (req, res) => {
       if (link) {
         return res.json(
           alexaResponse(
-            "Bienvenido de nuevo. Tu Alexa ya está vinculada. Puedes decir: pregunta qué es una API, o usa groq rápido.",
+            "Bienvenido de nuevo a Nexo IA. Tu Alexa ya está vinculada. Puedes decir: pregunta qué es una API, o usa groq rápido.",
             false
           )
         );
@@ -1238,7 +1301,7 @@ app.post("/alexa/skill", async (req, res) => {
 
       return res.json(
         alexaResponse(
-          "Bienvenido a Asistente Inteligente. Para vincular tu cuenta, abre la página web o la aplicación, genera un código de Alexa, y después dime: mi código es, seguido de los seis números.",
+          "Bienvenido a Nexo IA. Para vincular tu cuenta, abre la página web o la aplicación, genera un código de Alexa, y después dime: mi código es, seguido de los seis números.",
           false
         )
       );
@@ -1252,10 +1315,21 @@ app.post("/alexa/skill", async (req, res) => {
         const rawCode = getSlotValue(slots, "codigo");
         const pairCode = normalizePairCode(rawCode);
 
+        const attemptStatus = await canTryAlexaPairCode(alexaUserId);
+
+        if (!attemptStatus.allowed) {
+          return res.json(
+            alexaResponse(
+              "Detecté demasiados intentos incorrectos. Por seguridad, espera diez minutos antes de intentar vincular otra vez.",
+              true
+            )
+          );
+        }
+
         if (!pairCode || pairCode.length < 4) {
           return res.json(
             alexaResponse(
-              "No entendí tu código. Genera un código desde la página web y dime: mi código es, seguido de los seis números.",
+              "No entendí tu código. Genera un código desde la página web o la aplicación y dime: mi código es, seguido de los seis números.",
               false
             )
           );
@@ -1264,9 +1338,26 @@ app.post("/alexa/skill", async (req, res) => {
         const pair = await findValidPairCode(pairCode);
 
         if (!pair) {
+          await registerAlexaPairAttempt({
+            alexaUserId,
+            attemptedCode: pairCode,
+            success: false
+          });
+
+          const updatedStatus = await canTryAlexaPairCode(alexaUserId);
+
+          if (!updatedStatus.allowed) {
+            return res.json(
+              alexaResponse(
+                "Ese código no existe o ya expiró. Además, llegaste al límite de intentos. Espera diez minutos antes de intentar otra vez.",
+                true
+              )
+            );
+          }
+
           return res.json(
             alexaResponse(
-              "Ese código no existe o ya expiró. Genera uno nuevo desde la página web o la aplicación.",
+              `Ese código no existe o ya expiró. Te quedan ${updatedStatus.remaining} intentos antes del bloqueo temporal.`,
               false
             )
           );
@@ -1486,6 +1577,24 @@ async function startServer() {
     process.exit(1);
   }
 }
+app.get("/debug/pair-attempts", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, alexa_user_id, attempted_code, success, created_at
+      FROM alexa_pair_attempts
+      ORDER BY id DESC
+      LIMIT 50
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({
+      error: "Error debug pair attempts",
+      detalle: error.message
+    });
+  }
+});
+
 /* =========================
    KEEP ALIVE OPCIONAL
    Actívalo en Render con:
