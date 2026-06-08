@@ -2,363 +2,680 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Nexo IA | Multi IA</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexo IA | Voz, Web y App con IA</title>
+<link rel="icon" href="assets/favicon.png">
 <style>
-
 :root {
-  --bg: #f6f8fc;
-  --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --ink: #0f172a;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  --primary: #2563eb;
-  --primary-2: #7c3aed;
-  --cyan: #06b6d4;
-  --green: #16a34a;
-  --amber: #f59e0b;
-  --red: #dc2626;
-  --dark: #020617;
-  --dark-2: #0f172a;
-  --dark-3: #111827;
-  --shadow: 0 22px 55px rgba(15, 23, 42, .16);
-  --radius: 18px;
+  --bg: #070816;
+  --bg2: #0f172a;
+  --panel: rgba(15, 23, 42, 0.78);
+  --card: rgba(255, 255, 255, 0.08);
+  --card2: rgba(255, 255, 255, 0.12);
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --line: rgba(148, 163, 184, 0.20);
+  --blue: #38bdf8;
+  --cyan: #22d3ee;
+  --purple: #8b5cf6;
+  --pink: #d946ef;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --shadow: 0 24px 90px rgba(2, 6, 23, 0.45);
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-  height: 100vh;
-  color: var(--ink);
+  min-height: 100vh;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at 15% 20%, rgba(37, 99, 235, .20), transparent 30%),
-    radial-gradient(circle at 85% 0%, rgba(124, 58, 237, .16), transparent 25%),
-    linear-gradient(135deg, #eef4ff 0%, #f8fafc 48%, #f2f7ff 100%);
+    radial-gradient(circle at 15% 5%, rgba(139, 92, 246, 0.34), transparent 34%),
+    radial-gradient(circle at 85% 15%, rgba(34, 211, 238, 0.22), transparent 38%),
+    linear-gradient(135deg, #020617 0%, #090a1f 50%, #0f172a 100%);
+  color: var(--text);
 }
 
 button, input, select, textarea { font-family: inherit; }
-button { transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease, filter .15s ease; }
-button:hover { transform: translateY(-1px); filter: brightness(1.03); }
-button:active { transform: translateY(0); }
-button:disabled { opacity: .7; cursor: not-allowed; transform: none; }
 
-.login {
-  position: fixed;
-  inset: 0;
-  color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 20;
-  padding: 20px;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(56, 189, 248, .25), transparent 30%),
-    radial-gradient(circle at 80% 15%, rgba(124, 58, 237, .25), transparent 25%),
-    linear-gradient(135deg, #020617, #0f172a 48%, #111827);
+button {
+  border: none;
+  cursor: pointer;
+  transition: transform .15s ease, opacity .15s ease, background .15s ease;
 }
 
-.login-card {
-  width: min(420px, 100%);
-  background: rgba(15, 23, 42, .78);
-  padding: 30px;
-  border-radius: 28px;
-  box-shadow: 0 30px 90px rgba(0,0,0,.42);
-  border: 1px solid rgba(148, 163, 184, .22);
-  backdrop-filter: blur(18px);
-}
+button:hover { transform: translateY(-1px); }
+button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 
-.login-card h2 {
-  margin: 0;
-  text-align: center;
-  font-size: 30px;
-  letter-spacing: -.8px;
-}
-
-.login-card h2::before {
-  content: "✦";
-  display: inline-grid;
+.auth-screen {
+  min-height: 100vh;
+  display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  margin-right: 10px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-2));
-  box-shadow: 0 10px 30px rgba(37, 99, 235, .38);
+  padding: 22px;
 }
 
-.login-card p {
+.auth-shell {
+  width: min(980px, 100%);
+  display: grid;
+  grid-template-columns: 1.1fr .9fr;
+  gap: 22px;
+  align-items: stretch;
+}
+
+.hero-card, .auth-card, .sidebar, .header, .alexa-card, .modal {
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.hero-card {
+  min-height: 560px;
+  border-radius: 32px;
+  padding: 34px;
+  background:
+    linear-gradient(135deg, rgba(139, 92, 246, .20), rgba(34, 211, 238, .12)),
+    rgba(15, 23, 42, .62);
+  overflow: hidden;
+  position: relative;
+}
+
+.hero-card::after {
+  content: "";
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  right: -120px;
+  bottom: -120px;
+  background: radial-gradient(circle, rgba(56, 189, 248, .24), transparent 68%);
+}
+
+.brand-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.logo-img {
+  width: 66px;
+  height: 66px;
+  object-fit: contain;
+  border-radius: 22px;
+  background: rgba(255,255,255,.96);
+  padding: 7px;
+}
+
+.brand-title {
+  font-size: 32px;
+  margin: 0;
+  letter-spacing: -.04em;
+}
+
+.brand-subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.hero-title {
+  font-size: clamp(38px, 5vw, 62px);
+  line-height: .96;
+  margin: 54px 0 18px;
+  letter-spacing: -.06em;
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, #a78bfa, #38bdf8, #22d3ee);
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.hero-copy {
+  max-width: 560px;
   color: #cbd5e1;
-  font-size: 14px;
-  text-align: center;
-  line-height: 1.6;
-  margin: 12px 0 18px;
+  line-height: 1.65;
+  font-size: 17px;
 }
 
-.login-card input {
+.pill-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+
+.pill {
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.14);
+  color: #e0f2fe;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auth-card {
+  border-radius: 32px;
+  padding: 28px;
+  background: rgba(15, 23, 42, .78);
+}
+
+.auth-card h2 { margin: 0 0 8px; font-size: 28px; letter-spacing: -.03em; }
+.auth-card p { color: var(--muted); line-height: 1.5; margin: 0 0 18px; }
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.field label {
+  font-size: 13px;
+  color: #cbd5e1;
+  font-weight: 800;
+}
+
+.field input, .field textarea, .field select {
   width: 100%;
-  padding: 13px 14px;
-  margin: 8px 0;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, .24);
+  padding: 14px 14px;
+  border-radius: 15px;
+  border: 1px solid rgba(148, 163, 184, .26);
   background: rgba(2, 6, 23, .72);
   color: white;
   outline: none;
 }
-.login-card input:focus { border-color: rgba(59, 130, 246, .8); box-shadow: 0 0 0 4px rgba(37, 99, 235, .16); }
 
-.login-card button {
+.field input:focus, .field textarea:focus, .field select:focus {
+  border-color: rgba(56, 189, 248, .86);
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, .12);
+}
+
+.btn-primary, .btn-secondary, .btn-danger, .btn-success, .btn-warning {
   width: 100%;
-  padding: 13px;
+  padding: 13px 16px;
+  border-radius: 15px;
+  font-weight: 900;
+  color: white;
   margin-top: 10px;
-  border: none;
-  border-radius: 14px;
-  cursor: pointer;
+}
+
+.btn-primary { background: linear-gradient(135deg, var(--purple), var(--blue)); }
+.btn-secondary { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.14); }
+.btn-danger { background: linear-gradient(135deg, #991b1b, #ef4444); }
+.btn-success { background: linear-gradient(135deg, #15803d, #22c55e); }
+.btn-warning { background: linear-gradient(135deg, #b45309, #f59e0b); color: #111827; }
+
+.auth-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.link-btn {
+  background: transparent;
+  color: #7dd3fc;
+  padding: 6px 0;
   font-weight: 800;
 }
 
-.primary, .new-chat, .input-area button {
-  background: linear-gradient(135deg, var(--primary), var(--primary-2));
-  color: white;
-  box-shadow: 0 14px 28px rgba(37, 99, 235, .22);
+.app {
+  display: none;
+  height: 100vh;
+  width: 100%;
 }
-.secondary { background: #334155; color: white; }
-.success { background: linear-gradient(135deg, #16a34a, #22c55e); color: white; }
-.warning { background: linear-gradient(135deg, #f59e0b, #f97316); color: #111827; }
-.danger { background: linear-gradient(135deg, #991b1b, #dc2626); color: white; }
-
-.app { display: none; height: 100vh; width: 100%; }
 
 .sidebar {
-  width: 390px;
-  background:
-    radial-gradient(circle at top left, rgba(37,99,235,.26), transparent 35%),
-    linear-gradient(180deg, #020617 0%, #0f172a 100%);
-  color: white;
+  width: 380px;
+  background: rgba(2, 6, 23, .78);
+  border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(148, 163, 184, .18);
-  box-shadow: 12px 0 40px rgba(15, 23, 42, .12);
 }
 
-.sidebar-top { padding: 16px; border-bottom: 1px solid rgba(148, 163, 184, .14); }
-.sidebar-top h3 {
-  margin: 0 0 14px 0;
-  font-size: 22px;
-  letter-spacing: -.4px;
+.sidebar-top { padding: 18px; border-bottom: 1px solid var(--line); }
+
+.mini-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
 }
-.sidebar-top h3::after {
-  content: "Nexo IA";
-  display: inline-block;
-  margin-left: 10px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: rgba(59,130,246,.14);
-  color: #93c5fd;
-  font-size: 11px;
-  vertical-align: middle;
+
+.mini-brand img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 16px;
+  background: white;
+  padding: 5px;
 }
+
+.mini-brand h3 { margin: 0; font-size: 20px; }
+.mini-brand p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
 
 .alexa-card {
-  background: rgba(15, 23, 42, .72);
-  border: 1px solid rgba(148, 163, 184, .16);
+  background: rgba(255,255,255,.07);
   border-radius: 22px;
-  padding: 15px;
-  margin-bottom: 13px;
-  box-shadow: 0 18px 45px rgba(0,0,0,.16);
+  padding: 16px;
+  box-shadow: none;
 }
-.alexa-card small { color: #94a3b8; display: block; margin-bottom: 5px; }
+
+.alexa-card small {
+  display: block;
+  color: var(--muted);
+  margin-top: 8px;
+  font-weight: 800;
+}
+
 .alexa-status {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  padding: 5px 10px;
+  padding: 6px 10px;
   border-radius: 999px;
-  margin: 6px 0 10px 0;
+  font-size: 12px;
+  margin: 8px 0 4px;
   font-weight: 900;
 }
-.status-linked { background: #dcfce7; color: #166534; }
-.status-unlinked { background: #fee2e2; color: #991b1b; }
-.status-code { background: #fef3c7; color: #92400e; }
+
+.status-linked { background: rgba(34,197,94,.16); color: #86efac; }
+.status-unlinked { background: rgba(239,68,68,.16); color: #fecaca; }
+.status-code { background: rgba(245,158,11,.18); color: #fde68a; }
+
 .alexa-code {
-  margin-top: 6px;
-  font-weight: 900;
-  color: #38bdf8;
+  margin-top: 8px;
   font-size: 30px;
+  color: var(--blue);
+  font-weight: 1000;
   letter-spacing: 4px;
-  text-shadow: 0 0 22px rgba(56, 189, 248, .26);
 }
-.alexa-countdown { margin-top: 4px; font-size: 12px; color: #fbbf24; }
-.alexa-help { font-size: 12px; color: #dbeafe; margin-top: 8px; line-height: 1.5; }
-.alexa-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
-.alexa-actions button { border: none; padding: 10px; border-radius: 13px; cursor: pointer; font-weight: 900; font-size: 12px; }
+
+.alexa-countdown { color: #fde68a; font-size: 12px; margin-top: 4px; }
+
+.alexa-help {
+  color: #cbd5e1;
+  line-height: 1.45;
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+.grid-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.grid-actions button, .inline-actions button {
+  padding: 10px 12px;
+  border-radius: 13px;
+  font-size: 12px;
+  font-weight: 900;
+}
 
 .new-chat {
   width: 100%;
-  border: none;
+  margin: 14px 0 10px;
+  background: linear-gradient(135deg, var(--purple), var(--blue));
+  color: white;
   padding: 12px;
   border-radius: 15px;
-  cursor: pointer;
-  margin-bottom: 11px;
   font-weight: 900;
 }
+
 .provider-select {
   width: 100%;
   padding: 12px;
   border-radius: 15px;
-  background: rgba(15, 23, 42, .72);
+  background: rgba(255,255,255,.08);
   color: white;
-  border: 1px solid rgba(148, 163, 184, .20);
-  outline: none;
+  border: 1px solid var(--line);
 }
+
 .filters {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: 7px;
   padding: 12px;
-  border-bottom: 1px solid rgba(148, 163, 184, .14);
+  border-bottom: 1px solid var(--line);
 }
+
 .filter-btn {
-  padding: 8px 5px;
-  font-size: 12px;
-  border: 1px solid rgba(148, 163, 184, .16);
-  background: rgba(15, 23, 42, .70);
-  color: #dbeafe;
   border-radius: 999px;
-  cursor: pointer;
+  padding: 8px 4px;
+  color: #cbd5e1;
+  background: rgba(255,255,255,.08);
+  font-size: 12px;
+  font-weight: 900;
 }
-.filter-btn.active { background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: white; border-color: transparent; box-shadow: 0 12px 28px rgba(37,99,235,.22); }
-.chat-list { flex: 1; overflow-y: auto; padding: 12px; }
+
+.filter-btn.active {
+  background: linear-gradient(135deg, var(--purple), var(--blue));
+  color: white;
+}
+
+.chat-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
 .chat-item {
   padding: 13px;
-  background: rgba(15, 23, 42, .76);
-  margin-bottom: 10px;
-  cursor: pointer;
-  border-radius: 17px;
-  font-size: 14px;
-  color: #f8fafc;
-  border: 1px solid rgba(148, 163, 184, .10);
+  border-radius: 16px;
+  background: rgba(255,255,255,.07);
+  margin-bottom: 9px;
+  border: 1px solid transparent;
 }
-.chat-item:hover { background: rgba(30, 41, 59, .92); transform: translateY(-1px); }
-.chat-item.active { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(37, 99, 235, .14); }
-.chat-source { display: inline-block; font-size: 11px; color: #93c5fd; margin-bottom: 6px; font-weight: 800; }
-.chat-date { display: block; font-size: 11px; color: #64748b; margin-top: 6px; }
-.no-chats { color: #94a3b8; font-size: 13px; text-align: center; margin-top: 20px; }
-.sidebar-bottom { padding: 14px; border-top: 1px solid rgba(148, 163, 184, .14); }
-.logout { width: 100%; background: linear-gradient(135deg, #7f1d1d, #b91c1c); color: white; border: none; padding: 12px; border-radius: 15px; cursor: pointer; font-weight: 900; }
 
-.main { flex: 1; display: flex; flex-direction: column; background: rgba(248, 250, 252, .78); }
-.header {
-  min-height: 68px;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 22px;
-  background: rgba(255,255,255,.82);
-  backdrop-filter: blur(14px);
+.chat-item:hover { border-color: rgba(56,189,248,.55); }
+.chat-item.active { border-color: var(--blue); }
+
+.chat-source {
+  display: inline-block;
+  color: #7dd3fc;
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 5px;
 }
-.header-left { display: flex; align-items: center; gap: 10px; }
-.header-title { font-weight: 950; font-size: 19px; letter-spacing: -.4px; }
-.header-provider { color: var(--muted); font-size: 14px; background: #eef2ff; padding: 6px 10px; border-radius: 999px; }
-.header-actions button { border: none; background: #e0e7ff; color: #3730a3; padding: 9px 12px; border-radius: 12px; cursor: pointer; font-size: 12px; font-weight: 900; }
-.chat-box { flex: 1; overflow-y: auto; padding: 26px; display: flex; flex-direction: column; }
+
+.chat-title { color: white; font-size: 14px; line-height: 1.35; }
+.chat-date { display: block; color: #64748b; font-size: 11px; margin-top: 7px; }
+
+.chat-row-actions {
+  display: flex;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.chat-row-actions button {
+  padding: 7px 9px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 900;
+  background: rgba(255,255,255,.10);
+  color: white;
+}
+
+.chat-row-actions .danger-mini { background: rgba(239,68,68,.20); color: #fecaca; }
+
+.sidebar-bottom {
+  padding: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.logout {
+  background: rgba(239,68,68,.16);
+  color: #fecaca;
+  width: 100%;
+  border-radius: 15px;
+  padding: 12px;
+  font-weight: 900;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #020617;
+}
+
+.header {
+  min-height: 72px;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, .94), rgba(30, 41, 59, .82)),
+    radial-gradient(circle at 90% 0%, rgba(56, 189, 248, .18), transparent 38%);
+  color: #f8fafc;
+  padding: 0 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: none;
+  border-bottom: 1px solid rgba(148, 163, 184, .18);
+}
+
+.header-title { font-size: 21px; font-weight: 1000; letter-spacing: -.03em; color: #f8fafc; }
+.header-provider { color: #93c5fd; font-size: 14px; margin-left: 10px; }
+
+.header .btn-secondary {
+  background: rgba(148, 163, 184, .13);
+  border: 1px solid rgba(148, 163, 184, .18);
+  color: #e0f2fe;
+}
+
+.header .btn-secondary:disabled {
+  background: rgba(148, 163, 184, .12);
+  color: rgba(226, 232, 240, .78);
+}
+
+.header .btn-danger { box-shadow: 0 12px 28px rgba(239, 68, 68, .22); }
+
+.inline-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chat-box {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(139, 92, 246, .16), transparent 34%),
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, .16), transparent 38%);
+}
+
 .empty-state {
   margin: auto;
+  max-width: 660px;
   text-align: center;
-  color: var(--muted);
-  max-width: 680px;
-  line-height: 1.7;
-  background: rgba(255,255,255,.72);
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, .74);
   border: 1px solid var(--line);
-  box-shadow: var(--shadow);
   border-radius: 28px;
-  padding: 36px;
+  padding: 34px;
+  box-shadow: var(--shadow);
 }
-.empty-state h2 { color: var(--ink); font-size: 30px; margin: 0 0 10px; letter-spacing: -.9px; }
-.empty-state code { background: #eef2ff; padding: 4px 8px; border-radius: 8px; color: #3730a3; font-weight: 800; }
-.msg { max-width: 76%; padding: 14px 16px; margin-bottom: 12px; border-radius: 19px; line-height: 1.5; white-space: pre-wrap; box-shadow: 0 8px 24px rgba(15, 23, 42, .07); }
-.user { align-self: flex-end; background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: white; border-bottom-right-radius: 7px; }
-.ai { align-self: flex-start; background: white; border: 1px solid var(--line); color: #111827; border-bottom-left-radius: 7px; }
-.badge, .source-badge { display: inline-block; font-size: 12px; padding: 4px 9px; border-radius: 999px; margin-bottom: 7px; margin-right: 5px; font-weight: 900; }
+
+.empty-state img { width: 88px; height: 88px; object-fit: contain; border-radius: 24px; background:white; padding: 8px; }
+.empty-state h2 { font-size: 34px; margin: 14px 0 8px; }
+.empty-state p { color: #94a3b8; line-height: 1.6; }
+
+.msg {
+  max-width: 78%;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border-radius: 20px;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.user {
+  align-self: flex-end;
+  color: white;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  border-bottom-right-radius: 7px;
+}
+
+.ai {
+  align-self: flex-start;
+  background: rgba(255,255,255,.92);
+  color: #0f172a;
+  border: 1px solid rgba(15, 23, 42, .08);
+  border-bottom-left-radius: 7px;
+}
+
+.badge, .source-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  margin-right: 5px;
+  margin-bottom: 7px;
+  font-weight: 900;
+}
+
 .badge { background: #e0e7ff; color: #3730a3; }
 .source-badge { background: #dcfce7; color: #166534; }
-.msg-time { display: block; margin-top: 8px; font-size: 11px; opacity: .72; }
-.input-area { display: flex; gap: 11px; padding: 16px; background: rgba(255,255,255,.88); border-top: 1px solid var(--line); backdrop-filter: blur(12px); }
-.input-area input { flex: 1; padding: 14px 15px; border-radius: 16px; border: 1px solid #cbd5e1; outline: none; background: white; }
-.input-area input:focus { border-color: #60a5fa; box-shadow: 0 0 0 4px rgba(37,99,235,.12); }
-.input-area button { padding: 0 25px; border: none; border-radius: 16px; cursor: pointer; font-weight: 950; }
 
-.modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .75); display: none; justify-content: center; align-items: center; z-index: 50; backdrop-filter: blur(7px); }
-.modal { width: 540px; max-width: calc(100% - 24px); background: white; border-radius: 26px; padding: 26px; box-shadow: 0 30px 90px rgba(0,0,0,.38); border: 1px solid rgba(226,232,240,.9); }
-.modal h2 { margin-top: 0; color: var(--ink); letter-spacing: -.5px; }
-.modal p { color: #475569; line-height: 1.5; }
-.survey-row { margin: 14px 0; }
-.survey-row label { display: block; font-weight: 900; margin-bottom: 7px; color: var(--ink); }
-.survey-row select, .survey-row textarea { width: 100%; padding: 11px; border: 1px solid #cbd5e1; border-radius: 13px; outline: none; }
-.survey-row textarea { min-height: 95px; resize: vertical; }
-.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
-.modal-actions button { flex: 1; padding: 12px; border: none; border-radius: 14px; cursor: pointer; font-weight: 900; }
+.msg-time { display: block; font-size: 11px; margin-top: 8px; opacity: .65; }
 
-@media (max-width: 850px) {
-  .app { flex-direction: column; }
-  .sidebar { width: 100%; max-height: 48vh; }
-  .msg { max-width: 92%; }
-  .header { align-items: flex-start; flex-direction: column; gap: 8px; padding: 14px; }
-  .empty-state { margin: 16px; padding: 22px; }
+.input-area {
+  display: flex;
+  gap: 10px;
+  padding: 16px;
+  background: rgba(2, 6, 23, .88);
+  border-top: 1px solid rgba(148, 163, 184, .18);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
+.input-area input {
+  flex: 1;
+  padding: 15px;
+  border-radius: 17px;
+  border: 1px solid rgba(148, 163, 184, .28);
+  background: rgba(15, 23, 42, .82);
+  color: #f8fafc;
+  outline: none;
+}
+
+.input-area input::placeholder { color: #94a3b8; }
+
+.input-area input:focus {
+  border-color: rgba(56, 189, 248, .86);
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, .12);
+}
+
+.input-area button {
+  padding: 0 24px;
+  border-radius: 17px;
+  background: linear-gradient(135deg, var(--purple), var(--blue));
+  color: white;
+  font-weight: 1000;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, .76);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+  padding: 18px;
+}
+
+.modal {
+  width: 540px;
+  max-width: 100%;
+  background: rgba(255,255,255,.96);
+  color: #0f172a;
+  border-radius: 28px;
+  padding: 24px;
+}
+
+.modal h2 { margin: 0 0 8px; }
+.modal p { color: #475569; }
+
+.survey-row { margin: 14px 0; }
+.survey-row label { display:block; font-weight: 900; margin-bottom: 7px; }
+.survey-row select, .survey-row textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+}
+.survey-row textarea { min-height: 90px; resize: vertical; }
+
+.modal-actions { display:flex; gap:10px; margin-top:16px; }
+.modal-actions button { flex:1; }
+
+.notice {
+  color: #fde68a;
+  background: rgba(245,158,11,.14);
+  border: 1px solid rgba(245,158,11,.26);
+  padding: 11px;
+  border-radius: 15px;
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .auth-shell { grid-template-columns: 1fr; }
+  .hero-card { min-height: auto; }
+  .app { flex-direction: column; height: auto; min-height: 100vh; }
+  .sidebar { width: 100%; max-height: 54vh; }
+  .msg { max-width: 94%; }
+  .header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; }
+}
 </style>
 </head>
-
 <body>
 
-<!-- LOGIN -->
-<div id="loginScreen" class="login">
-  <div class="login-card">
-    <h2>Nexo IA</h2>
-    <p>Tu asistente inteligente para conectar voz, web y app móvil con múltiples modelos de IA.</p>
-    <input id="email" placeholder="Email o usuario">
-    <input id="password" type="password" placeholder="Password">
-    <button class="primary" onclick="login()">Entrar</button>
-    <button class="secondary" onclick="register()">Crear cuenta</button>
+<section id="authScreen" class="auth-screen">
+  <div class="auth-shell">
+    <div class="hero-card">
+      <div class="brand-row">
+        <img class="logo-img" src="assets/nexo-logo.png" alt="Nexo IA">
+        <div>
+          <h1 class="brand-title">Nexo IA</h1>
+          <p class="brand-subtitle">Voz, web y app conectadas con inteligencia artificial.</p>
+        </div>
+      </div>
+
+      <h2 class="hero-title">Tu asistente de voz ahora tiene un <span class="gradient-text">nexo inteligente.</span></h2>
+      <p class="hero-copy">
+        Haz preguntas desde Alexa, la web o el móvil. Guarda historial, compara respuestas de IA
+        y mide la experiencia con encuestas para tu investigación.
+      </p>
+
+      <div class="pill-row">
+        <span class="pill">🔊 Alexa</span>
+        <span class="pill">🌐 Web</span>
+        <span class="pill">📱 App móvil</span>
+        <span class="pill">📊 Encuestas</span>
+        <span class="pill">🔐 Cuentas seguras</span>
+      </div>
+    </div>
+
+    <div id="authCard" class="auth-card"></div>
   </div>
-</div>
+</section>
 
-<!-- APP -->
 <div id="app" class="app">
-
   <aside class="sidebar">
     <div class="sidebar-top">
-      <h3>▣ Chats</h3>
+      <div class="mini-brand">
+        <img src="assets/nexo-logo.png" alt="Nexo IA">
+        <div>
+          <h3>Nexo IA</h3>
+          <p>Centro de conversaciones</p>
+        </div>
+      </div>
 
       <div class="alexa-card">
-        <small>Estado de Alexa:</small>
+        <small>Estado de Alexa</small>
         <span id="alexaStatusBadge" class="alexa-status status-unlinked">Cargando...</span>
 
-        <small>Código temporal para vincular:</small>
+        <small>Código temporal</small>
         <div id="alexaCode" class="alexa-code">------</div>
         <div id="alexaCountdown" class="alexa-countdown"></div>
 
         <div id="alexaHelp" class="alexa-help">
-          Genera un código y dile a Alexa: “mi código es...” Después confirma diciendo “sí”.
+          Genera un código y di: “mi código es...” Después confirma diciendo “sí”.
         </div>
 
-        <div class="alexa-actions">
-          <button id="generateCodeBtn" class="success" onclick="generateAlexaCode()">Generar</button>
-          <button class="secondary" onclick="copyAlexaInstructions()">Copiar</button>
-          <button class="warning" onclick="loadAlexaStatus()">Refrescar</button>
-          <button id="unlinkAlexaBtn" class="danger" onclick="unlinkAlexa()">Desvincular</button>
+        <div class="grid-actions">
+          <button class="btn-success" id="generateCodeBtn" onclick="generateAlexaCode()">Generar</button>
+          <button class="btn-secondary" onclick="copyAlexaInstructions()">Copiar</button>
+          <button class="btn-warning" onclick="loadAlexaStatus()">Refrescar</button>
+          <button class="btn-danger" id="unlinkAlexaBtn" onclick="unlinkAlexa()">Desvincular</button>
         </div>
       </div>
 
-      <button class="new-chat" onclick="nuevoChat()">+ Nuevo Chat Web</button>
+      <button class="new-chat" onclick="nuevoChat()">+ Nuevo chat</button>
 
       <select id="iaSelect" class="provider-select" onchange="updateProviderLabel()">
-        <option value="auto">Auto gratis/rápido</option>
+        <option value="auto">Auto inteligente</option>
         <option value="chatgpt">ChatGPT</option>
         <option value="groq_fast">Groq rápido</option>
         <option value="groq_power">Groq potente</option>
@@ -382,34 +699,30 @@ button:disabled { opacity: .7; cursor: not-allowed; transform: none; }
 
   <main class="main">
     <div class="header">
-      <div class="header-left">
-        <span class="header-title">✦ Nexo IA — Centro de control</span>
-        <span id="providerLabel" class="header-provider">Auto gratis/rápido</span>
+      <div>
+        <span class="header-title">Panel Nexo IA</span>
+        <span id="providerLabel" class="header-provider">Auto inteligente</span>
       </div>
 
-      <div class="header-actions">
-        <button onclick="showSurveyDemo()">Encuesta</button>
+      <div class="inline-actions">
+        <button class="btn-secondary" id="surveyButton" onclick="showSurveyDemo()">Encuesta</button>
+        <button class="btn-danger" onclick="deleteAllChats()">Borrar historial</button>
       </div>
     </div>
 
     <div id="chat" class="chat-box"></div>
 
     <div class="input-area">
-      <input id="msg" placeholder="Escribe tu mensaje..." onkeydown="handleKey(event)">
+      <input id="msg" placeholder="Pregunta algo desde la web..." onkeydown="handleKey(event)">
       <button id="sendBtn" onclick="send()">Enviar</button>
     </div>
   </main>
-
 </div>
 
-<!-- SURVEY MODAL -->
 <div id="surveyModal" class="modal-backdrop">
   <div class="modal">
-    <h2>📊 Encuesta de experiencia</h2>
-    <p>
-      Queremos medir si las respuestas de Alexa mejoran al conectarla con Nexo IA.
-      Califica tu experiencia hasta ahora.
-    </p>
+    <h2>📊 Encuesta Nexo IA</h2>
+    <p>Ayúdanos a medir si Alexa mejora al conectarse con modelos de inteligencia artificial.</p>
 
     <div class="survey-row">
       <label>Claridad de las respuestas</label>
@@ -445,7 +758,7 @@ button:disabled { opacity: .7; cursor: not-allowed; transform: none; }
     </div>
 
     <div class="survey-row">
-      <label>¿Preferirías usar Alexa con este sistema?</label>
+      <label>¿Preferirías usar Alexa con Nexo IA?</label>
       <select id="surveyPreferred">
         <option value="true">Sí</option>
         <option value="false">No</option>
@@ -469,27 +782,27 @@ button:disabled { opacity: .7; cursor: not-allowed; transform: none; }
     </div>
 
     <div class="modal-actions">
-      <button class="secondary" onclick="dismissSurvey()">Después</button>
-      <button class="primary" onclick="submitSurvey()">Enviar encuesta</button>
+      <button class="btn-secondary" onclick="dismissSurvey()">Después</button>
+      <button class="btn-primary" onclick="submitSurvey()">Enviar encuesta</button>
     </div>
   </div>
 </div>
 
 <script>
-const API =
-  window.location.protocol === "file:"
-    ? "http://localhost:3000"
-    : window.location.origin;
+const API = window.location.protocol === "file:" ? "http://localhost:3000" : window.location.origin;
 
-let conversation_id = null;
 let token = localStorage.getItem("token");
-
+let conversation_id = null;
+let authMode = "login";
+let pendingEmail = "";
 let allChats = [];
 let currentFilter = "all";
 let pairExpiresAt = null;
 let pairTimer = null;
+let surveyStatus = null;
 
-const loginScreen = document.getElementById("loginScreen");
+const authScreen = document.getElementById("authScreen");
+const authCard = document.getElementById("authCard");
 const app = document.getElementById("app");
 const chat = document.getElementById("chat");
 const historyBox = document.getElementById("history");
@@ -497,99 +810,123 @@ const msgInput = document.getElementById("msg");
 const sendBtn = document.getElementById("sendBtn");
 const iaSelect = document.getElementById("iaSelect");
 const providerLabel = document.getElementById("providerLabel");
-
 const alexaCodeBox = document.getElementById("alexaCode");
 const alexaStatusBadge = document.getElementById("alexaStatusBadge");
 const alexaCountdown = document.getElementById("alexaCountdown");
 const alexaHelp = document.getElementById("alexaHelp");
 const generateCodeBtn = document.getElementById("generateCodeBtn");
 const unlinkAlexaBtn = document.getElementById("unlinkAlexaBtn");
-
 const surveyModal = document.getElementById("surveyModal");
+const surveyButton = document.getElementById("surveyButton");
 
 function getProviderName(value) {
   const names = {
-    auto: "Auto gratis/rápido",
+    auto: "Auto inteligente",
     chatgpt: "ChatGPT",
     groq_fast: "Groq rápido",
     groq_power: "Groq potente",
     gemini: "Gemini experimental"
   };
-
-  return names[value] || "Auto";
+  return names[value] || "Auto inteligente";
 }
 
 function getSourceName(value) {
-  const names = {
-    web: "🌐 Web",
-    alexa: "🔊 Alexa",
-    mobile: "📱 Móvil"
-  };
-
+  const names = { web: "🌐 Web", alexa: "🔊 Alexa", mobile: "📱 Móvil" };
   return names[value] || "🌐 Web";
 }
 
 function authHeaders(extra = {}) {
-  return {
-    ...extra,
-    "Authorization": token
-  };
+  return { ...extra, Authorization: token };
 }
 
-function updateProviderLabel() {
-  providerLabel.innerText = getProviderName(iaSelect.value);
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
 
-function formatDateTime(value) {
-  if (!value) return "";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "";
-
-  return date.toLocaleString("es-MX", {
-    dateStyle: "short",
-    timeStyle: "short"
-  });
+function isValidPassword(password) {
+  return String(password || "").length >= 8;
 }
 
-function dateFromConversationId(id) {
-  const text = String(id || "");
-  const parts = text.split("-");
-  const maybeTimestamp = Number(parts[parts.length - 1]);
-
-  if (!Number.isFinite(maybeTimestamp)) return "";
-
-  return formatDateTime(maybeTimestamp);
+function showWakeMessage() {
+  return "No se pudo conectar. Si el servidor estaba dormido, espera unos segundos e intenta de nuevo.";
 }
 
-function showEmptyState() {
-  chat.innerHTML = `
-    <div class="empty-state">
-      <h2>Bienvenido a Nexo IA ✨</h2>
-      <p>
-        Tu ecosistema ya está listo: web, app móvil y Alexa conectados a modelos de inteligencia artificial.
-        Para Alexa, genera un código temporal, di <code>mi código es 123456</code>,
-        confirma con <code>sí</code> y después pregunta naturalmente.
-      </p>
+function setAuthMode(mode, email = "") {
+  authMode = mode;
+  if (email) pendingEmail = email;
+  renderAuth();
+}
+
+function renderAuth() {
+  if (authMode === "register") {
+    authCard.innerHTML = `
+      <h2>Crear cuenta</h2>
+      <p>Usa un correo real. Te enviaremos un código de verificación.</p>
+      <div class="field"><label>Correo</label><input id="authEmail" placeholder="tu@email.com"></div>
+      <div class="field"><label>Contraseña</label><input id="authPassword" type="password" placeholder="Mínimo 8 caracteres"></div>
+      <button class="btn-primary" onclick="register()">Crear cuenta</button>
+      <div class="auth-links"><button class="link-btn" onclick="setAuthMode('login')">Ya tengo cuenta</button></div>
+    `;
+    return;
+  }
+
+  if (authMode === "verify") {
+    authCard.innerHTML = `
+      <h2>Verificar correo</h2>
+      <p>Ingresa el código de 6 dígitos enviado a tu correo. En pruebas con MAIL_MODE=console aparece en logs.</p>
+      <div class="field"><label>Correo</label><input id="verifyEmail" value="${pendingEmail || ""}" placeholder="tu@email.com"></div>
+      <div class="field"><label>Código</label><input id="verifyCode" placeholder="123456"></div>
+      <button class="btn-primary" onclick="verifyEmail()">Verificar</button>
+      <button class="btn-secondary" onclick="resendVerification()">Reenviar código</button>
+      <div class="auth-links"><button class="link-btn" onclick="setAuthMode('login')">Volver a login</button></div>
+    `;
+    return;
+  }
+
+  if (authMode === "forgot") {
+    authCard.innerHTML = `
+      <h2>Recuperar contraseña</h2>
+      <p>Te enviaremos un código si el correo está registrado.</p>
+      <div class="field"><label>Correo</label><input id="forgotEmail" placeholder="tu@email.com"></div>
+      <button class="btn-primary" onclick="forgotPassword()">Enviar código</button>
+      <div class="auth-links"><button class="link-btn" onclick="setAuthMode('login')">Volver</button></div>
+    `;
+    return;
+  }
+
+  if (authMode === "reset") {
+    authCard.innerHTML = `
+      <h2>Nueva contraseña</h2>
+      <p>Usa el código recibido para crear una contraseña nueva.</p>
+      <div class="field"><label>Correo</label><input id="resetEmail" value="${pendingEmail || ""}" placeholder="tu@email.com"></div>
+      <div class="field"><label>Código</label><input id="resetCode" placeholder="123456"></div>
+      <div class="field"><label>Nueva contraseña</label><input id="resetPassword" type="password" placeholder="Mínimo 8 caracteres"></div>
+      <button class="btn-primary" onclick="resetPassword()">Actualizar contraseña</button>
+      <div class="auth-links"><button class="link-btn" onclick="setAuthMode('login')">Volver a login</button></div>
+    `;
+    return;
+  }
+
+  authCard.innerHTML = `
+    <h2>Iniciar sesión</h2>
+    <p>Accede a tus conversaciones de Alexa, web y app móvil.</p>
+    <div class="field"><label>Correo</label><input id="authEmail" placeholder="tu@email.com"></div>
+    <div class="field"><label>Contraseña</label><input id="authPassword" type="password" placeholder="Tu contraseña"></div>
+    <button class="btn-primary" onclick="login()">Entrar</button>
+    <button class="btn-secondary" onclick="setAuthMode('register')">Crear cuenta</button>
+    <div class="auth-links">
+      <button class="link-btn" onclick="setAuthMode('forgot')">Olvidé mi contraseña</button>
+      <button class="link-btn" onclick="setAuthMode('verify')">Verificar correo</button>
     </div>
   `;
 }
 
-function clearEmptyState() {
-  const empty = chat.querySelector(".empty-state");
-  if (empty) empty.remove();
-}
-
-/* ================= LOGIN ================= */
 async function login() {
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value.trim();
+  const email = document.getElementById("authEmail").value.trim().toLowerCase();
+  const password = document.getElementById("authPassword").value;
 
-  if (!email || !password) {
-    alert("Escribe email y password");
-    return;
-  }
+  if (!isValidEmail(email)) return alert("Ingresa un correo válido.");
+  if (!password) return alert("Escribe tu contraseña.");
 
   try {
     const res = await fetch(API + "/login", {
@@ -604,23 +941,28 @@ async function login() {
       localStorage.setItem("token", data.token);
       token = data.token;
       startApp();
-    } else {
-      alert(data.error || "Error login");
+      return;
     }
-  } catch (error) {
-    alert("No se pudo conectar con el servidor.");
+
+    if (data.needs_verification) {
+      pendingEmail = data.email || email;
+      alert(data.error || "Verifica tu correo.");
+      setAuthMode("verify", pendingEmail);
+      return;
+    }
+
+    alert(data.error || "No se pudo iniciar sesión.");
+  } catch {
+    alert(showWakeMessage());
   }
 }
 
-/* ================= REGISTER ================= */
 async function register() {
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value.trim();
+  const email = document.getElementById("authEmail").value.trim().toLowerCase();
+  const password = document.getElementById("authPassword").value;
 
-  if (!email || !password) {
-    alert("Escribe email y password");
-    return;
-  }
+  if (!isValidEmail(email)) return alert("Ingresa un correo válido.");
+  if (!isValidPassword(password)) return alert("La contraseña debe tener al menos 8 caracteres.");
 
   try {
     const res = await fetch(API + "/register", {
@@ -631,69 +973,177 @@ async function register() {
 
     const data = await res.json();
 
-    if (data.ok) {
-      alert("Usuario creado. Ahora inicia sesión.");
-    } else {
-      alert(data.error || "Error al registrar");
+    if (data.ok || data.needs_verification) {
+      pendingEmail = data.email || email;
+      alert(data.message || "Cuenta creada. Verifica tu correo.");
+      setAuthMode("verify", pendingEmail);
+      return;
     }
-  } catch (error) {
-    alert("No se pudo conectar con el servidor.");
+
+    alert(data.error || "No se pudo crear cuenta.");
+  } catch {
+    alert(showWakeMessage());
   }
 }
 
-/* ================= LOGOUT ================= */
+async function verifyEmail() {
+  const email = document.getElementById("verifyEmail").value.trim().toLowerCase();
+  const code = document.getElementById("verifyCode").value.trim();
+
+  if (!isValidEmail(email) || !code) return alert("Escribe correo y código.");
+
+  try {
+    const res = await fetch(API + "/verify-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code })
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      alert("Correo verificado. Ahora inicia sesión.");
+      setAuthMode("login");
+      return;
+    }
+
+    alert(data.error || "No se pudo verificar.");
+  } catch {
+    alert(showWakeMessage());
+  }
+}
+
+async function resendVerification() {
+  const email = (document.getElementById("verifyEmail")?.value || pendingEmail).trim().toLowerCase();
+
+  if (!isValidEmail(email)) return alert("Ingresa un correo válido.");
+
+  try {
+    const res = await fetch(API + "/resend-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+
+    const data = await res.json();
+    alert(data.message || "Si aplica, enviamos un nuevo código.");
+  } catch {
+    alert(showWakeMessage());
+  }
+}
+
+async function forgotPassword() {
+  const email = document.getElementById("forgotEmail").value.trim().toLowerCase();
+
+  if (!isValidEmail(email)) return alert("Ingresa un correo válido.");
+
+  try {
+    const res = await fetch(API + "/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    });
+
+    const data = await res.json();
+    pendingEmail = email;
+    alert(data.message || "Si el correo existe, enviaremos instrucciones.");
+    setAuthMode("reset", email);
+  } catch {
+    alert(showWakeMessage());
+  }
+}
+
+async function resetPassword() {
+  const email = document.getElementById("resetEmail").value.trim().toLowerCase();
+  const code = document.getElementById("resetCode").value.trim();
+  const password = document.getElementById("resetPassword").value;
+
+  if (!isValidEmail(email) || !code) return alert("Escribe correo y código.");
+  if (!isValidPassword(password)) return alert("La contraseña debe tener al menos 8 caracteres.");
+
+  try {
+    const res = await fetch(API + "/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code, password })
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      alert("Contraseña actualizada. Inicia sesión.");
+      setAuthMode("login");
+      return;
+    }
+
+    alert(data.error || "No se pudo actualizar.");
+  } catch {
+    alert(showWakeMessage());
+  }
+}
+
 function logout() {
   localStorage.removeItem("token");
   location.reload();
 }
 
-/* ================= START ================= */
+function updateProviderLabel() {
+  providerLabel.innerText = getProviderName(iaSelect.value);
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" });
+}
+
+function dateFromConversationId(id) {
+  const text = String(id || "");
+  const parts = text.split("-");
+  const maybeTimestamp = Number(parts[parts.length - 1]);
+  if (!Number.isFinite(maybeTimestamp)) return "";
+  return formatDateTime(maybeTimestamp);
+}
+
+function showEmptyState() {
+  chat.innerHTML = `
+    <div class="empty-state">
+      <img src="assets/nexo-logo.png" alt="Nexo IA">
+      <h2>Bienvenido a Nexo IA</h2>
+      <p>Pregunta desde la web, conecta Alexa diciendo <b>“Alexa, abre nexo inteligente”</b> o consulta tu historial desde la app móvil.</p>
+    </div>
+  `;
+}
+
+function clearEmptyState() {
+  const empty = chat.querySelector(".empty-state");
+  if (empty) empty.remove();
+}
+
 function startApp() {
-  loginScreen.style.display = "none";
+  authScreen.style.display = "none";
   app.style.display = "flex";
   updateProviderLabel();
   showEmptyState();
-  loadMe();
   loadAlexaStatus();
   loadChats();
   checkSurveyStatus();
 }
 
-/* ================= USER INFO ================= */
-async function loadMe() {
-  try {
-    const res = await fetch(API + "/me", {
-      headers: authHeaders()
-    });
-
-    const data = await res.json();
-
-    if (data.error) {
-      logout();
-    }
-  } catch (error) {
-    console.log("Error loadMe:", error);
-  }
-}
-
-/* ================= ALEXA STATUS ================= */
 async function loadAlexaStatus() {
   try {
-    const res = await fetch(API + "/alexa/status", {
-      headers: authHeaders()
-    });
-
+    const res = await fetch(API + "/alexa/status", { headers: authHeaders() });
     const data = await res.json();
 
     if (data.linked) {
       pairExpiresAt = null;
       stopPairTimer();
-
       alexaStatusBadge.innerText = "Vinculada";
       alexaStatusBadge.className = "alexa-status status-linked";
       alexaCodeBox.innerText = "OK";
       alexaCountdown.innerText = "";
-      alexaHelp.innerText = "Tu Alexa ya está vinculada. Puedes decir: “pregunta qué es una API” o “usa groq rápido”. Para abrirla di: “Alexa, abre nexo inteligente”.";
+      alexaHelp.innerText = "Tu Alexa está vinculada. Puedes decir: “pregunta qué es una API” o “usa groq rápido”.";
       unlinkAlexaBtn.disabled = false;
       return;
     }
@@ -702,42 +1152,37 @@ async function loadAlexaStatus() {
 
     if (data.active_pair_code) {
       pairExpiresAt = data.active_pair_code.expires_at;
-
       alexaStatusBadge.innerText = "Código activo";
       alexaStatusBadge.className = "alexa-status status-code";
       alexaCodeBox.innerText = data.active_pair_code.code;
-      alexaHelp.innerText = "Dile a Alexa: “mi código es " + data.active_pair_code.code + "”. Luego confirma diciendo “sí”.";
+      alexaHelp.innerText = `Dile a Alexa: “mi código es ${data.active_pair_code.code}”. Luego confirma diciendo “sí”.`;
       startPairTimer();
-    } else {
-      pairExpiresAt = null;
-      stopPairTimer();
-
-      alexaStatusBadge.innerText = "No vinculada";
-      alexaStatusBadge.className = "alexa-status status-unlinked";
-      alexaCodeBox.innerText = "------";
-      alexaCountdown.innerText = "";
-      alexaHelp.innerText = "Genera un código temporal y dile a Alexa: “mi código es”, seguido de los seis números.";
+      return;
     }
-  } catch (error) {
+
+    pairExpiresAt = null;
+    stopPairTimer();
+    alexaStatusBadge.innerText = "No vinculada";
+    alexaStatusBadge.className = "alexa-status status-unlinked";
+    alexaCodeBox.innerText = "------";
+    alexaCountdown.innerText = "";
+    alexaHelp.innerText = "Genera un código temporal y di: “mi código es”, seguido de los seis números.";
+  } catch {
     alexaStatusBadge.innerText = "Error";
     alexaStatusBadge.className = "alexa-status status-unlinked";
-    alexaHelp.innerText = "No se pudo cargar el estado de Alexa.";
+    alexaHelp.innerText = showWakeMessage();
   }
 }
 
 function startPairTimer() {
   stopPairTimer();
-
   updatePairCountdown();
-
   pairTimer = setInterval(updatePairCountdown, 1000);
 }
 
 function stopPairTimer() {
-  if (pairTimer) {
-    clearInterval(pairTimer);
-    pairTimer = null;
-  }
+  if (pairTimer) clearInterval(pairTimer);
+  pairTimer = null;
 }
 
 function updatePairCountdown() {
@@ -746,9 +1191,7 @@ function updatePairCountdown() {
     return;
   }
 
-  const expires = new Date(pairExpiresAt).getTime();
-  const now = Date.now();
-  const diff = expires - now;
+  const diff = new Date(pairExpiresAt).getTime() - Date.now();
 
   if (diff <= 0) {
     alexaCountdown.innerText = "Código expirado. Genera uno nuevo.";
@@ -758,13 +1201,11 @@ function updatePairCountdown() {
 
   const minutes = Math.floor(diff / 60000);
   const seconds = Math.floor((diff % 60000) / 1000);
-
   alexaCountdown.innerText = `Expira en ${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 async function generateAlexaCode() {
   generateCodeBtn.disabled = true;
-  generateCodeBtn.innerText = "Generando...";
 
   try {
     const res = await fetch(API + "/alexa/generate-code", {
@@ -780,31 +1221,29 @@ async function generateAlexaCode() {
       pairExpiresAt = data.expires_at;
       alexaStatusBadge.innerText = "Código activo";
       alexaStatusBadge.className = "alexa-status status-code";
-      alexaHelp.innerText = "Ahora dile a Alexa: “mi código es " + data.code + "”. Después Alexa te pedirá confirmar diciendo “sí”.";
+      alexaHelp.innerText = `Ahora di: “mi código es ${data.code}”. Después confirma diciendo “sí”.`;
       startPairTimer();
       alert("Código generado: " + data.code);
     } else {
-      alert(data.error || "No se pudo generar código");
+      alert(data.error || "No se pudo generar código.");
     }
 
-    loadAlexaStatus();
-  } catch (error) {
-    alert("No se pudo conectar con el servidor.");
+    await loadAlexaStatus();
+  } catch {
+    alert(showWakeMessage());
   } finally {
     generateCodeBtn.disabled = false;
-    generateCodeBtn.innerText = "Generar";
   }
 }
 
 function copyAlexaInstructions() {
   const code = alexaCodeBox.innerText.trim();
-
   let text = "Alexa, abre nexo inteligente.";
 
   if (code && code !== "------" && code !== "OK") {
-    text += " Luego di: mi código es " + code + ". Después confirma diciendo: sí.";
+    text += ` Luego di: mi código es ${code}. Después confirma diciendo: sí.`;
   } else {
-    text += " Si no está vinculada, genera un código temporal desde la web.";
+    text += " Si no está vinculada, genera un código temporal desde Nexo IA.";
   }
 
   navigator.clipboard?.writeText(text)
@@ -813,8 +1252,7 @@ function copyAlexaInstructions() {
 }
 
 async function unlinkAlexa() {
-  const ok = confirm("¿Seguro que quieres desvincular Alexa de esta cuenta?");
-  if (!ok) return;
+  if (!confirm("¿Seguro que quieres desvincular Alexa?")) return;
 
   try {
     const res = await fetch(API + "/alexa/unlink", {
@@ -825,73 +1263,154 @@ async function unlinkAlexa() {
     const data = await res.json();
 
     if (data.ok) {
-      alert("Alexa desvinculada correctamente.");
+      alert("Alexa desvinculada.");
       loadAlexaStatus();
     } else {
-      alert(data.error || "No se pudo desvincular Alexa.");
+      alert(data.error || "No se pudo desvincular.");
     }
-  } catch (error) {
-    alert("No se pudo conectar con el servidor.");
+  } catch {
+    alert(showWakeMessage());
   }
 }
 
-/* ================= FILTERS ================= */
 function setFilter(filter) {
   currentFilter = filter;
-
   document.querySelectorAll(".filter-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.filter === filter);
   });
-
   renderChatList();
 }
 
 function renderChatList() {
   historyBox.innerHTML = "";
 
-  const filtered =
-    currentFilter === "all"
-      ? allChats
-      : allChats.filter(c => (c.source || "web") === currentFilter);
+  const filtered = currentFilter === "all"
+    ? allChats
+    : allChats.filter(c => (c.source || "web") === currentFilter);
 
   if (filtered.length === 0) {
-    historyBox.innerHTML = `<div class="no-chats">No hay chats en este filtro.</div>`;
+    historyBox.innerHTML = `<div class="notice">No hay chats en este filtro.</div>`;
     return;
   }
 
   filtered.forEach(c => {
     const div = document.createElement("div");
     div.className = "chat-item";
+    if (c.conversation_id === conversation_id) div.classList.add("active");
 
-    if (c.conversation_id === conversation_id) {
-      div.classList.add("active");
-    }
-
-    const source = document.createElement("span");
-    source.className = "chat-source";
-    source.innerText = getSourceName(c.source);
-
-    const title = document.createElement("div");
-    title.innerText = c.titulo || "Chat sin título";
-
-    const date = document.createElement("span");
-    date.className = "chat-date";
-    date.innerText = dateFromConversationId(c.conversation_id);
-
-    div.appendChild(source);
-    div.appendChild(title);
-
-    if (date.innerText) {
-      div.appendChild(date);
-    }
+    div.innerHTML = `
+      <span class="chat-source">${getSourceName(c.source)}</span>
+      <div class="chat-title">${c.titulo || "Chat sin título"}</div>
+      <span class="chat-date">${dateFromConversationId(c.conversation_id)}</span>
+      <div class="chat-row-actions">
+        <button onclick="event.stopPropagation(); openChat('${c.conversation_id}')">Abrir</button>
+        <button class="danger-mini" onclick="event.stopPropagation(); deleteChat('${c.conversation_id}')">Borrar</button>
+      </div>
+    `;
 
     div.onclick = () => openChat(c.conversation_id);
-
     historyBox.appendChild(div);
   });
 }
 
-/* ================= SEND WEB ================= */
+async function loadChats() {
+  try {
+    const res = await fetch(API + "/conversaciones", { headers: authHeaders() });
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      allChats = data;
+      renderChatList();
+    }
+  } catch {
+    console.log("No se pudo cargar historial.");
+  }
+}
+
+async function openChat(id) {
+  conversation_id = id;
+
+  try {
+    const res = await fetch(API + "/historial/" + encodeURIComponent(id), {
+      headers: authHeaders()
+    });
+
+    const data = await res.json();
+    chat.innerHTML = "";
+
+    if (!Array.isArray(data)) {
+      showEmptyState();
+      return;
+    }
+
+    data.forEach(m => {
+      addMsg(
+        m.role === "user" ? "user" : "ai",
+        m.mensaje,
+        m.role === "ai" ? getProviderName(m.ia) : "",
+        m.source || "web",
+        m.created_at
+      );
+    });
+
+    renderChatList();
+  } catch {
+    addMsg("ai", "No se pudo cargar el historial.", "Error", "web", new Date().toISOString());
+  }
+}
+
+async function deleteChat(id) {
+  if (!confirm("¿Borrar este chat?")) return;
+
+  try {
+    const res = await fetch(API + "/conversaciones/" + encodeURIComponent(id), {
+      method: "DELETE",
+      headers: authHeaders()
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      if (conversation_id === id) nuevoChat();
+      await loadChats();
+    } else {
+      alert(data.error || "No se pudo borrar.");
+    }
+  } catch {
+    alert(showWakeMessage());
+  }
+}
+
+async function deleteAllChats() {
+  if (!confirm("¿Borrar todo tu historial visible?")) return;
+
+  try {
+    const res = await fetch(API + "/conversaciones", {
+      method: "DELETE",
+      headers: authHeaders()
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      nuevoChat();
+      await loadChats();
+      alert("Historial borrado.");
+    } else {
+      alert(data.error || "No se pudo borrar el historial.");
+    }
+  } catch {
+    alert(showWakeMessage());
+  }
+}
+
+function nuevoChat() {
+  conversation_id = null;
+  chat.innerHTML = "";
+  showEmptyState();
+  renderChatList();
+  msgInput.focus();
+}
+
 async function send() {
   const mensaje = msgInput.value.trim();
   const ia = iaSelect.value;
@@ -909,11 +1428,7 @@ async function send() {
     const res = await fetch(API + "/preguntar", {
       method: "POST",
       headers: authHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({
-        mensaje,
-        conversation_id,
-        ia
-      })
+      body: JSON.stringify({ mensaje, conversation_id, ia })
     });
 
     const data = await res.json();
@@ -924,20 +1439,12 @@ async function send() {
     }
 
     conversation_id = data.conversation_id;
-
-    addMsg(
-      "ai",
-      data.respuesta,
-      data.ia_nombre || getProviderName(data.ia),
-      data.source || "web",
-      new Date().toISOString()
-    );
+    addMsg("ai", data.respuesta, data.ia_nombre || getProviderName(data.ia), data.source || "web", new Date().toISOString());
 
     loadChats();
     checkSurveyStatus();
-
-  } catch (error) {
-    addMsg("ai", "No se pudo conectar con el servidor.", "Error", "web", new Date().toISOString());
+  } catch {
+    addMsg("ai", showWakeMessage(), "Error", "web", new Date().toISOString());
   } finally {
     sendBtn.disabled = false;
     sendBtn.innerText = "Enviar";
@@ -945,7 +1452,6 @@ async function send() {
   }
 }
 
-/* ================= UI ================= */
 function addMsg(role, text, iaName = "", source = "web", createdAt = "") {
   clearEmptyState();
 
@@ -953,15 +1459,7 @@ function addMsg(role, text, iaName = "", source = "web", createdAt = "") {
   div.className = "msg " + role;
 
   if (role === "ai" && iaName) {
-    const badge = document.createElement("div");
-    badge.className = "badge";
-    badge.innerText = iaName;
-    div.appendChild(badge);
-
-    const sourceBadge = document.createElement("div");
-    sourceBadge.className = "source-badge";
-    sourceBadge.innerText = getSourceName(source);
-    div.appendChild(sourceBadge);
+    div.innerHTML += `<span class="badge">${iaName}</span><span class="source-badge">${getSourceName(source)}</span>`;
   }
 
   const content = document.createElement("div");
@@ -977,95 +1475,38 @@ function addMsg(role, text, iaName = "", source = "web", createdAt = "") {
   chat.scrollTop = chat.scrollHeight;
 }
 
-/* ================= LOAD CHATS ================= */
-async function loadChats() {
-  try {
-    const res = await fetch(API + "/conversaciones", {
-      headers: authHeaders()
-    });
-
-    const data = await res.json();
-
-    if (!Array.isArray(data)) return;
-
-    allChats = data;
-    renderChatList();
-  } catch (error) {
-    console.log("Error loadChats:", error);
-  }
-}
-
-/* ================= OPEN CHAT ================= */
-async function openChat(id) {
-  conversation_id = id;
-
-  try {
-    const res = await fetch(API + "/historial/" + id, {
-      headers: authHeaders()
-    });
-
-    const data = await res.json();
-
-    chat.innerHTML = "";
-
-    if (!Array.isArray(data)) {
-      showEmptyState();
-      return;
-    }
-
-    data.forEach(m => {
-      const iaName = m.role === "ai" ? getProviderName(m.ia) : "";
-      addMsg(
-        m.role === "user" ? "user" : "ai",
-        m.mensaje,
-        iaName,
-        m.source || "web",
-        m.created_at
-      );
-    });
-
-    renderChatList();
-  } catch (error) {
-    chat.innerHTML = "";
-    addMsg("ai", "No se pudo cargar el historial.", "Error", "web", new Date().toISOString());
-  }
-}
-
-/* ================= NEW CHAT ================= */
-function nuevoChat() {
-  conversation_id = null;
-  chat.innerHTML = "";
-  showEmptyState();
-  renderChatList();
-  msgInput.focus();
-}
-
-/* ================= ENTER KEY ================= */
 function handleKey(event) {
-  if (event.key === "Enter") {
-    send();
-  }
-}
-
-/* ================= SURVEY ================= */
-function showSurveyDemo() {
-  surveyModal.style.display = "flex";
+  if (event.key === "Enter") send();
 }
 
 async function checkSurveyStatus() {
   try {
-    const res = await fetch(API + "/survey/status", {
-      headers: authHeaders()
-    });
-
+    const res = await fetch(API + "/survey/status", { headers: authHeaders() });
     const data = await res.json();
+    surveyStatus = data;
+
+    if (data.reason === "already_answered") {
+      surveyButton.style.display = "none";
+      surveyModal.style.display = "none";
+      return;
+    }
+
+    surveyButton.style.display = "inline-block";
 
     if (data.should_show) {
       surveyModal.style.display = "flex";
     }
-  } catch (error) {
-    console.log("No se pudo revisar encuesta:", error);
+  } catch {
+    console.log("No se pudo revisar encuesta.");
   }
+}
+
+function showSurveyDemo() {
+  if (surveyStatus?.reason === "already_answered") {
+    alert("Gracias, ya respondiste la encuesta.");
+    return;
+  }
+  surveyModal.style.display = "flex";
 }
 
 async function dismissSurvey() {
@@ -1075,10 +1516,7 @@ async function dismissSurvey() {
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({})
     });
-  } catch (error) {
-    console.log("No se pudo posponer encuesta:", error);
-  }
-
+  } catch {}
   surveyModal.style.display = "none";
 }
 
@@ -1102,21 +1540,22 @@ async function submitSurvey() {
     const data = await res.json();
 
     if (data.ok) {
-      alert("Gracias por responder la encuesta.");
+      alert("Gracias por responder.");
       surveyModal.style.display = "none";
+      checkSurveyStatus();
     } else {
-      alert(data.error || "No se pudo guardar la encuesta.");
+      alert(data.error || "No se pudo guardar.");
     }
-  } catch (error) {
-    alert("No se pudo conectar con el servidor.");
+  } catch {
+    alert(showWakeMessage());
   }
 }
 
-/* ================= INIT ================= */
+renderAuth();
+
 if (token) {
   startApp();
 }
 </script>
-
 </body>
 </html>

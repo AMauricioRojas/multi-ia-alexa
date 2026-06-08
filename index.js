@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import fetch from "node-fetch";
 import path from "path";
 import { fileURLToPath } from "url";
+import crypto from "crypto";
 
 dotenv.config();
 
@@ -172,6 +173,82 @@ async function initDatabase() {
     ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'web';
   `);
 
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT true;
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP;
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS verification_code_hash TEXT;
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMP;
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS verification_attempts INTEGER DEFAULT 0;
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS reset_code_hash TEXT;
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS reset_expires_at TIMESTAMP;
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS reset_attempts INTEGER DEFAULT 0;
+  `);
+
+  await pool.query(`
+    ALTER TABLE chats
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS auth_attempts (
+      id SERIAL PRIMARY KEY,
+      email TEXT,
+      ip TEXT,
+      type TEXT NOT NULL,
+      success BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_auth_attempts_email_type_time
+    ON auth_attempts (email, type, created_at);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    INSERT INTO system_settings (key, value)
+    VALUES ('keep_alive_enabled', 'false')
+    ON CONFLICT (key) DO NOTHING;
+  `);
+
   console.log("✅ Tablas verificadas correctamente");
 }
 
@@ -275,6 +352,172 @@ function generatePairCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim().toLowerCase());
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function isValidPassword(password) {
+  return String(password || "").length >= 8;
+}
+
+function generateSixDigitCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function hashCode(code) {
+  return crypto
+    .createHash("sha256")
+    .update(String(code || ""))
+    .digest("hex");
+}
+
+function getClientIp(req) {
+  return (
+    req.headers["x-forwarded-for"]?.toString().split(",")[0]?.trim() ||
+    req.socket?.remoteAddress ||
+    "unknown"
+  );
+}
+
+async function sendNexoEmail({ to, subject, text }) {
+  const mode = process.env.MAIL_MODE || "console";
+
+  if (mode === "resend" && process.env.RESEND_API_KEY) {
+    const from = process.env.EMAIL_FROM || "Nexo IA <onboarding@resend.dev>";
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from,
+        to,
+        subject,
+        text
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      console.log("RESEND ERROR:", data);
+      throw new Error(data.message || "No se pudo enviar correo");
+    }
+
+    return { ok: true, mode: "resend" };
+  }
+
+  console.log("\n================ NEXO IA EMAIL ================");
+  console.log("Para:", to);
+  console.log("Asunto:", subject);
+  console.log(text);
+  console.log("================================================\n");
+
+  return { ok: true, mode: "console" };
+}
+
+async function createVerificationCodeForUser(userId, email) {
+  const code = generateSixDigitCode();
+
+  await pool.query(
+    `UPDATE users
+     SET verification_code_hash=$1,
+         verification_expires_at=CURRENT_TIMESTAMP + INTERVAL '10 minutes',
+         verification_attempts=0,
+         email_verified=false,
+         email_verified_at=NULL
+     WHERE id=$2`,
+    [hashCode(code), userId]
+  );
+
+  await sendNexoEmail({
+    to: email,
+    subject: "Código de verificación de Nexo IA",
+    text:
+      `Tu código de verificación de Nexo IA es: ${code}\n\n` +
+      "Este código expira en 10 minutos. Si tú no solicitaste esto, puedes ignorar este mensaje."
+  });
+
+  return code;
+}
+
+async function registerAuthAttempt({ email, ip, type, success }) {
+  await pool.query(
+    `INSERT INTO auth_attempts (email, ip, type, success)
+     VALUES ($1, $2, $3, $4)`,
+    [normalizeEmail(email), ip || "unknown", type, Boolean(success)]
+  );
+}
+
+async function getFailedAuthAttempts({ email, ip, type }) {
+  const result = await pool.query(
+    `SELECT COUNT(*)::int AS total
+     FROM auth_attempts
+     WHERE type=$1
+       AND success=false
+       AND created_at > CURRENT_TIMESTAMP - INTERVAL '10 minutes'
+       AND (email=$2 OR ip=$3)`,
+    [type, normalizeEmail(email), ip || "unknown"]
+  );
+
+  return result.rows[0]?.total || 0;
+}
+
+async function canAttemptAuth({ email, ip, type, max = 5 }) {
+  const failed = await getFailedAuthAttempts({ email, ip, type });
+  return {
+    allowed: failed < max,
+    failed,
+    remaining: Math.max(0, max - failed)
+  };
+}
+
+function adminAuth(req, res, next) {
+  const adminSecret = process.env.ADMIN_SECRET;
+
+  if (!adminSecret) {
+    return res.status(503).json({
+      error: "Admin no configurado. Agrega ADMIN_SECRET en variables de entorno."
+    });
+  }
+
+  const provided = req.headers["x-admin-key"];
+
+  if (provided !== adminSecret) {
+    return res.status(401).json({
+      error: "No autorizado"
+    });
+  }
+
+  next();
+}
+
+async function getSystemSetting(key, fallback = "false") {
+  const result = await pool.query(
+    "SELECT value FROM system_settings WHERE key=$1",
+    [key]
+  );
+
+  return result.rows[0]?.value ?? fallback;
+}
+
+async function setSystemSetting(key, value) {
+  await pool.query(
+    `INSERT INTO system_settings (key, value, updated_at)
+     VALUES ($1, $2, CURRENT_TIMESTAMP)
+     ON CONFLICT (key)
+     DO UPDATE SET value=EXCLUDED.value, updated_at=CURRENT_TIMESTAMP`,
+    [key, String(value)]
+  );
+}
+
+
 
 async function getAlexaFailedAttempts(alexaUserId) {
   const result = await pool.query(
@@ -339,46 +582,81 @@ function auth(req, res, next) {
 ========================= */
 app.post("/register", async (req, res) => {
   try {
-    const email = cleanText(req.body.email);
-    const password = cleanText(req.body.password);
+    const email = normalizeEmail(req.body.email);
+    const password = String(req.body.password || "");
 
     if (!email || !password) {
       return res.status(400).json({
-        error: "Email y password son obligatorios"
+        error: "Correo y contraseña son obligatorios"
       });
     }
 
-    if (password.length < 4) {
+    if (!isValidEmail(email)) {
       return res.status(400).json({
-        error: "La contraseña debe tener mínimo 4 caracteres"
+        error: "Ingresa un correo válido"
+      });
+    }
+
+    if (!isValidPassword(password)) {
+      return res.status(400).json({
+        error: "La contraseña debe tener al menos 8 caracteres"
+      });
+    }
+
+    const existing = await pool.query(
+      "SELECT id, email, email_verified FROM users WHERE email=$1",
+      [email]
+    );
+
+    if (existing.rows.length > 0) {
+      const user = existing.rows[0];
+
+      if (!user.email_verified) {
+        await createVerificationCodeForUser(user.id, user.email);
+
+        return res.json({
+          ok: true,
+          needs_verification: true,
+          email: user.email,
+          message: "Ya existía una cuenta pendiente de verificación. Te enviamos un nuevo código."
+        });
+      }
+
+      return res.status(400).json({
+        error: "Ese correo ya está registrado"
       });
     }
 
     const hash = await bcrypt.hash(password, 10);
 
     const inserted = await pool.query(
-      "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email",
+      `INSERT INTO users (email, password, email_verified)
+       VALUES ($1, $2, false)
+       RETURNING id, email`,
       [email, hash]
     );
 
     const user = inserted.rows[0];
     const legacyAlexaCode = `ALEXA-${user.id}`;
 
-    const updated = await pool.query(
-      "UPDATE users SET alexa_code=$1 WHERE id=$2 RETURNING id, email, alexa_code",
+    await pool.query(
+      "UPDATE users SET alexa_code=$1 WHERE id=$2",
       [legacyAlexaCode, user.id]
     );
 
+    await createVerificationCodeForUser(user.id, user.email);
+
     res.json({
       ok: true,
-      message: "Usuario creado correctamente",
-      user: updated.rows[0]
+      needs_verification: true,
+      email: user.email,
+      message: "Usuario creado. Verifica tu correo con el código enviado."
     });
   } catch (error) {
     console.log("REGISTER ERROR:", error.message);
 
-    res.status(400).json({
-      error: "No se pudo registrar. Puede que el usuario ya exista.",
+    res.status(500).json({
+      error: "No se pudo registrar en este momento.",
       detalle: error.message
     });
   }
@@ -388,13 +666,34 @@ app.post("/register", async (req, res) => {
    LOGIN
 ========================= */
 app.post("/login", async (req, res) => {
+  const ip = getClientIp(req);
+
   try {
-    const email = cleanText(req.body.email);
-    const password = cleanText(req.body.password);
+    const email = normalizeEmail(req.body.email);
+    const password = String(req.body.password || "");
 
     if (!email || !password) {
       return res.status(400).json({
-        error: "Email y password son obligatorios"
+        error: "Correo y contraseña son obligatorios"
+      });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({
+        error: "Ingresa un correo válido"
+      });
+    }
+
+    const attemptStatus = await canAttemptAuth({
+      email,
+      ip,
+      type: "login",
+      max: 5
+    });
+
+    if (!attemptStatus.allowed) {
+      return res.status(429).json({
+        error: "Demasiados intentos fallidos. Espera 10 minutos e intenta otra vez."
       });
     }
 
@@ -403,20 +702,32 @@ app.post("/login", async (req, res) => {
       [email]
     );
 
+    const genericError = "Correo o contraseña incorrectos";
+
     if (result.rows.length === 0) {
-      return res.status(400).json({
-        error: "No existe usuario"
-      });
+      await registerAuthAttempt({ email, ip, type: "login", success: false });
+      return res.status(401).json({ error: genericError });
     }
 
     const user = result.rows[0];
     const valid = await bcrypt.compare(password, user.password);
 
     if (!valid) {
-      return res.status(401).json({
-        error: "Password incorrecto"
+      await registerAuthAttempt({ email, ip, type: "login", success: false });
+      return res.status(401).json({ error: genericError });
+    }
+
+    if (!user.email_verified) {
+      await createVerificationCodeForUser(user.id, user.email);
+
+      return res.status(403).json({
+        error: "Tu correo todavía no está verificado. Te enviamos un nuevo código.",
+        needs_verification: true,
+        email: user.email
       });
     }
+
+    await registerAuthAttempt({ email, ip, type: "login", success: true });
 
     let legacyAlexaCode = user.alexa_code;
 
@@ -452,12 +763,290 @@ app.post("/login", async (req, res) => {
 });
 
 /* =========================
+   EMAIL VERIFICATION / PASSWORD RECOVERY
+========================= */
+app.post("/verify-email", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const code = normalizePairCode(req.body.code);
+
+    if (!isValidEmail(email) || !code) {
+      return res.status(400).json({
+        error: "Correo y código son obligatorios"
+      });
+    }
+
+    const result = await pool.query(
+      "SELECT id, email, email_verified, verification_code_hash, verification_expires_at, verification_attempts FROM users WHERE email=$1",
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({
+        error: "Código inválido o expirado"
+      });
+    }
+
+    const user = result.rows[0];
+
+    if (user.email_verified) {
+      return res.json({
+        ok: true,
+        message: "Tu correo ya estaba verificado"
+      });
+    }
+
+    if (!user.verification_code_hash || !user.verification_expires_at) {
+      return res.status(400).json({
+        error: "No hay código activo. Solicita uno nuevo."
+      });
+    }
+
+    if (Number(user.verification_attempts || 0) >= 5) {
+      return res.status(429).json({
+        error: "Demasiados intentos. Solicita un nuevo código."
+      });
+    }
+
+    if (new Date(user.verification_expires_at).getTime() < Date.now()) {
+      return res.status(400).json({
+        error: "El código expiró. Solicita uno nuevo."
+      });
+    }
+
+    if (hashCode(code) !== user.verification_code_hash) {
+      await pool.query(
+        "UPDATE users SET verification_attempts=verification_attempts+1 WHERE id=$1",
+        [user.id]
+      );
+
+      return res.status(400).json({
+        error: "Código incorrecto"
+      });
+    }
+
+    await pool.query(
+      `UPDATE users
+       SET email_verified=true,
+           email_verified_at=CURRENT_TIMESTAMP,
+           verification_code_hash=NULL,
+           verification_expires_at=NULL,
+           verification_attempts=0
+       WHERE id=$1`,
+      [user.id]
+    );
+
+    res.json({
+      ok: true,
+      message: "Correo verificado correctamente"
+    });
+  } catch (error) {
+    console.log("VERIFY EMAIL ERROR:", error.message);
+
+    res.status(500).json({
+      error: "No se pudo verificar el correo",
+      detalle: error.message
+    });
+  }
+});
+
+app.post("/resend-verification", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({
+        error: "Ingresa un correo válido"
+      });
+    }
+
+    const result = await pool.query(
+      "SELECT id, email, email_verified FROM users WHERE email=$1",
+      [email]
+    );
+
+    if (result.rows.length > 0 && !result.rows[0].email_verified) {
+      await createVerificationCodeForUser(result.rows[0].id, result.rows[0].email);
+    }
+
+    res.json({
+      ok: true,
+      message: "Si la cuenta existe y requiere verificación, enviaremos un código."
+    });
+  } catch (error) {
+    console.log("RESEND VERIFICATION ERROR:", error.message);
+
+    res.status(500).json({
+      error: "No se pudo reenviar el código",
+      detalle: error.message
+    });
+  }
+});
+
+app.post("/forgot-password", async (req, res) => {
+  const ip = getClientIp(req);
+
+  try {
+    const email = normalizeEmail(req.body.email);
+
+    if (!isValidEmail(email)) {
+      return res.json({
+        ok: true,
+        message: "Si el correo existe, enviaremos instrucciones para recuperar la contraseña."
+      });
+    }
+
+    const attemptStatus = await canAttemptAuth({
+      email,
+      ip,
+      type: "password_reset",
+      max: 5
+    });
+
+    if (!attemptStatus.allowed) {
+      return res.status(429).json({
+        error: "Demasiados intentos. Espera 10 minutos e intenta otra vez."
+      });
+    }
+
+    const result = await pool.query(
+      "SELECT id, email FROM users WHERE email=$1",
+      [email]
+    );
+
+    if (result.rows.length > 0) {
+      const user = result.rows[0];
+      const code = generateSixDigitCode();
+
+      await pool.query(
+        `UPDATE users
+         SET reset_code_hash=$1,
+             reset_expires_at=CURRENT_TIMESTAMP + INTERVAL '10 minutes',
+             reset_attempts=0
+         WHERE id=$2`,
+        [hashCode(code), user.id]
+      );
+
+      await sendNexoEmail({
+        to: user.email,
+        subject: "Recuperación de contraseña de Nexo IA",
+        text:
+          `Tu código para recuperar la contraseña de Nexo IA es: ${code}
+
+` +
+          "Este código expira en 10 minutos. Si tú no solicitaste esto, puedes ignorar este mensaje."
+      });
+    }
+
+    await registerAuthAttempt({ email, ip, type: "password_reset", success: true });
+
+    res.json({
+      ok: true,
+      message: "Si el correo existe, enviaremos instrucciones para recuperar la contraseña."
+    });
+  } catch (error) {
+    console.log("FORGOT PASSWORD ERROR:", error.message);
+
+    res.status(500).json({
+      error: "No se pudo procesar la recuperación",
+      detalle: error.message
+    });
+  }
+});
+
+app.post("/reset-password", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const code = normalizePairCode(req.body.code);
+    const password = String(req.body.password || "");
+
+    if (!isValidEmail(email) || !code || !password) {
+      return res.status(400).json({
+        error: "Correo, código y nueva contraseña son obligatorios"
+      });
+    }
+
+    if (!isValidPassword(password)) {
+      return res.status(400).json({
+        error: "La nueva contraseña debe tener al menos 8 caracteres"
+      });
+    }
+
+    const result = await pool.query(
+      "SELECT id, reset_code_hash, reset_expires_at, reset_attempts FROM users WHERE email=$1",
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({
+        error: "Código inválido o expirado"
+      });
+    }
+
+    const user = result.rows[0];
+
+    if (!user.reset_code_hash || !user.reset_expires_at) {
+      return res.status(400).json({
+        error: "No hay recuperación activa. Solicita un nuevo código."
+      });
+    }
+
+    if (Number(user.reset_attempts || 0) >= 5) {
+      return res.status(429).json({
+        error: "Demasiados intentos. Solicita un nuevo código."
+      });
+    }
+
+    if (new Date(user.reset_expires_at).getTime() < Date.now()) {
+      return res.status(400).json({
+        error: "El código expiró. Solicita uno nuevo."
+      });
+    }
+
+    if (hashCode(code) !== user.reset_code_hash) {
+      await pool.query(
+        "UPDATE users SET reset_attempts=reset_attempts+1 WHERE id=$1",
+        [user.id]
+      );
+
+      return res.status(400).json({
+        error: "Código incorrecto"
+      });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+
+    await pool.query(
+      `UPDATE users
+       SET password=$1,
+           reset_code_hash=NULL,
+           reset_expires_at=NULL,
+           reset_attempts=0
+       WHERE id=$2`,
+      [hash, user.id]
+    );
+
+    res.json({
+      ok: true,
+      message: "Contraseña actualizada correctamente"
+    });
+  } catch (error) {
+    console.log("RESET PASSWORD ERROR:", error.message);
+
+    res.status(500).json({
+      error: "No se pudo actualizar la contraseña",
+      detalle: error.message
+    });
+  }
+});
+
+/* =========================
    USER INFO
 ========================= */
 app.get("/me", auth, async (req, res) => {
   try {
     const userResult = await pool.query(
-      "SELECT id, email, alexa_code FROM users WHERE id=$1",
+      "SELECT id, email, alexa_code, email_verified FROM users WHERE id=$1",
       [req.user.user_id]
     );
 
@@ -923,6 +1512,7 @@ async function processQuestion({
        FROM chats
        WHERE user_id=$1 
          AND conversation_id=$2
+         AND deleted_at IS NULL
          AND role IN ('user', 'ai')
        ORDER BY id DESC
        LIMIT 20
@@ -1107,9 +1697,11 @@ app.get("/conversaciones", auth, async (req, res) => {
             FROM chats c2
             WHERE c2.conversation_id = c1.conversation_id
               AND c2.user_id = c1.user_id
+              AND c2.deleted_at IS NULL
           ) AS last_id
         FROM chats c1
         WHERE user_id=$1
+          AND deleted_at IS NULL
           AND role='user'
         ORDER BY conversation_id, id ASC
       ) AS conversaciones
@@ -1137,6 +1729,7 @@ app.get("/historial/:id", auth, async (req, res) => {
        FROM chats
        WHERE user_id=$1 
          AND conversation_id=$2
+         AND deleted_at IS NULL
          AND role IN ('user', 'ai')
        ORDER BY id ASC`,
       [req.user.user_id, req.params.id]
@@ -1148,6 +1741,56 @@ app.get("/historial/:id", auth, async (req, res) => {
 
     res.status(500).json({
       error: "Error obteniendo historial",
+      detalle: error.message
+    });
+  }
+});
+
+
+app.delete("/conversaciones/:id", auth, async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE chats
+       SET deleted_at=CURRENT_TIMESTAMP
+       WHERE user_id=$1
+         AND conversation_id=$2
+         AND deleted_at IS NULL`,
+      [req.user.user_id, req.params.id]
+    );
+
+    res.json({
+      ok: true,
+      message: "Chat eliminado correctamente"
+    });
+  } catch (error) {
+    console.log("DELETE CHAT ERROR:", error.message);
+
+    res.status(500).json({
+      error: "Error eliminando chat",
+      detalle: error.message
+    });
+  }
+});
+
+app.delete("/conversaciones", auth, async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE chats
+       SET deleted_at=CURRENT_TIMESTAMP
+       WHERE user_id=$1
+         AND deleted_at IS NULL`,
+      [req.user.user_id]
+    );
+
+    res.json({
+      ok: true,
+      message: "Historial eliminado correctamente"
+    });
+  } catch (error) {
+    console.log("DELETE ALL CHATS ERROR:", error.message);
+
+    res.status(500).json({
+      error: "Error eliminando historial",
       detalle: error.message
     });
   }
@@ -1525,7 +2168,7 @@ app.post("/alexa/skill", async (req, res) => {
 /* =========================
    DEBUG OPCIONAL
 ========================= */
-app.get("/debug/alexa-links", async (req, res) => {
+app.get("/debug/alexa-links", adminAuth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT al.id, al.alexa_user_id, al.user_id, u.email, u.alexa_code, al.preferred_ia, al.created_at, al.updated_at
@@ -1543,7 +2186,7 @@ app.get("/debug/alexa-links", async (req, res) => {
   }
 });
 
-app.get("/debug/pair-codes", async (req, res) => {
+app.get("/debug/pair-codes", adminAuth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT pc.id, pc.user_id, u.email, pc.code, pc.used, pc.expires_at, pc.created_at
@@ -1562,6 +2205,103 @@ app.get("/debug/pair-codes", async (req, res) => {
   }
 });
 
+
+/* =========================
+   ADMIN PRIVADO
+========================= */
+app.get("/admin/status", adminAuth, async (req, res) => {
+  try {
+    const keepAlive = await getSystemSetting("keep_alive_enabled", "false");
+
+    res.json({
+      ok: true,
+      app: "Nexo IA",
+      keep_alive_enabled: keepAlive === "true",
+      public_url: process.env.PUBLIC_URL || null,
+      mail_mode: process.env.MAIL_MODE || "console",
+      time: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Error obteniendo estado admin",
+      detalle: error.message
+    });
+  }
+});
+
+app.post("/admin/keep-alive/on", adminAuth, async (req, res) => {
+  await setSystemSetting("keep_alive_enabled", "true");
+
+  res.json({
+    ok: true,
+    message: "Keep-alive activado. Modo integradora encendido."
+  });
+});
+
+app.post("/admin/keep-alive/off", adminAuth, async (req, res) => {
+  await setSystemSetting("keep_alive_enabled", "false");
+
+  res.json({
+    ok: true,
+    message: "Keep-alive desactivado. Render podrá dormir en modo ahorro."
+  });
+});
+
+app.get("/admin/metrics", adminAuth, async (req, res) => {
+  try {
+    const users = await pool.query(`
+      SELECT 
+        COUNT(*)::int AS total_users,
+        COUNT(*) FILTER (WHERE email_verified=true)::int AS verified_users
+      FROM users
+    `);
+
+    const chats = await pool.query(`
+      SELECT 
+        COUNT(*)::int AS total_messages,
+        COUNT(*) FILTER (WHERE role='user')::int AS total_questions,
+        COUNT(*) FILTER (WHERE role='user' AND source='web')::int AS web_questions,
+        COUNT(*) FILTER (WHERE role='user' AND source='alexa')::int AS alexa_questions,
+        COUNT(*) FILTER (WHERE role='user' AND source='mobile')::int AS mobile_questions
+      FROM chats
+      WHERE deleted_at IS NULL
+    `);
+
+    const ia = await pool.query(`
+      SELECT ia, COUNT(*)::int AS total
+      FROM chats
+      WHERE role='ai'
+        AND deleted_at IS NULL
+      GROUP BY ia
+      ORDER BY total DESC
+      LIMIT 10
+    `);
+
+    const survey = await pool.query(`
+      SELECT
+        COUNT(*)::int AS total_surveys,
+        ROUND(AVG(clarity)::numeric, 2) AS avg_clarity,
+        ROUND(AVG(completeness)::numeric, 2) AS avg_completeness,
+        ROUND(AVG(usefulness)::numeric, 2) AS avg_usefulness,
+        ROUND((COUNT(*) FILTER (WHERE preferred_use=true)::numeric / NULLIF(COUNT(*), 0)) * 100, 2) AS preferred_percent
+      FROM survey_feedback
+    `);
+
+    res.json({
+      ok: true,
+      users: users.rows[0],
+      chats: chats.rows[0],
+      ia_usage: ia.rows,
+      survey: survey.rows[0]
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Error obteniendo métricas",
+      detalle: error.message
+    });
+  }
+});
+
 /* =========================
    START SERVER
 ========================= */
@@ -1570,14 +2310,15 @@ async function startServer() {
     await initDatabase();
 
     app.listen(PORT, () => {
-      console.log(`🚀 MULTI IA + ALEXA listo en puerto ${PORT}`);
+      console.log(`🚀 Nexo IA listo en puerto ${PORT}`);
+      startKeepAlive();
     });
   } catch (error) {
     console.error("❌ ERROR INICIANDO SERVIDOR:", error);
     process.exit(1);
   }
 }
-app.get("/debug/pair-attempts", async (req, res) => {
+app.get("/debug/pair-attempts", adminAuth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT id, alexa_user_id, attempted_code, success, created_at
@@ -1602,21 +2343,26 @@ app.get("/debug/pair-attempts", async (req, res) => {
    PUBLIC_URL=https://multi-ia-alexa-backend.onrender.com
 ========================= */
 function startKeepAlive() {
-  const enabled = process.env.ENABLE_SELF_PING === "true";
   const publicUrl = process.env.PUBLIC_URL;
 
-  if (!enabled || !publicUrl) {
-    console.log("ℹ️ Keep alive desactivado");
+  if (!publicUrl) {
+    console.log("ℹ️ Keep alive sin PUBLIC_URL. Modo ahorro.");
     return;
   }
 
   const intervalMinutes = Number(process.env.SELF_PING_MINUTES || 10);
   const intervalMs = intervalMinutes * 60 * 1000;
 
-  console.log(`✅ Keep alive activo cada ${intervalMinutes} minutos`);
+  console.log(`ℹ️ Keep alive preparado cada ${intervalMinutes} minutos. Se activa solo con /admin/keep-alive/on`);
 
   setInterval(async () => {
     try {
+      const enabled = await getSystemSetting("keep_alive_enabled", "false");
+
+      if (enabled !== "true") {
+        return;
+      }
+
       const response = await fetch(`${publicUrl}/keep-alive`);
       console.log(`[KEEP-ALIVE] ${response.status} ${new Date().toISOString()}`);
     } catch (error) {
