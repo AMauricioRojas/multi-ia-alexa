@@ -567,14 +567,42 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 .modal {
   width: 540px;
   max-width: 100%;
-  background: rgba(255,255,255,.96);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   color: #0f172a;
   border-radius: 28px;
   padding: 24px;
+  border: 1px solid rgba(226, 232, 240, .98);
+  box-shadow: 0 34px 100px rgba(2, 6, 23, .48);
 }
 
-.modal h2 { margin: 0 0 8px; }
-.modal p { color: #475569; }
+.modal h2 { margin: 0 0 8px; color: #0f172a; letter-spacing: -.03em; }
+.modal h3 { color: #0f172a; }
+.modal p { color: #334155; font-weight: 600; }
+.modal .btn-secondary {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #312e81;
+  box-shadow: 0 10px 24px rgba(49, 46, 129, .08);
+}
+.modal .btn-secondary:hover { background: #e0e7ff; }
+.modal .btn-primary {
+  background: linear-gradient(135deg, #8b5cf6, #38bdf8);
+  color: #ffffff;
+  box-shadow: 0 14px 28px rgba(56, 189, 248, .20);
+}
+.modal .btn-danger {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: #ffffff;
+  box-shadow: 0 14px 30px rgba(239, 68, 68, .20);
+}
+.modal .btn-secondary:disabled, .modal .btn-primary:disabled, .modal .btn-danger:disabled {
+  opacity: .55;
+}
+#openResearchBtn {
+  background: #ecfeff;
+  border-color: #67e8f9;
+  color: #155e75;
+}
 
 .survey-row { margin: 14px 0; }
 .survey-row label { display:block; font-weight: 900; margin-bottom: 7px; }
@@ -598,6 +626,73 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
   font-size: 13px;
   margin-top: 12px;
 }
+
+
+
+.legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 12px;
+}
+.legal-links a {
+  color: #7dd3fc;
+  text-decoration: none;
+  font-weight: 900;
+}
+.consent-box {
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid rgba(56,189,248,.22);
+  border-radius: 16px;
+  background: rgba(14,165,233,.09);
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.consent-box label { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; }
+.consent-box input { width: 18px; height: 18px; margin-top: 2px; }
+.settings-grid { display: grid; gap: 14px; margin-top: 16px; }
+.settings-card {
+  background: #ffffff;
+  border: 1px solid #dbe3f0;
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, .08);
+}
+.settings-card h3 { margin: 0 0 6px; color: #0f172a; }
+.settings-card p { margin: 0 0 10px; color: #475569; }
+.admin-unlocked { color: #15803d; font-weight: 1000; background: #dcfce7; border: 1px solid #86efac; padding: 9px 10px; border-radius: 12px; }
+.admin-locked { color: #92400e; font-weight: 1000; background: #fef3c7; border: 1px solid #fcd34d; padding: 9px 10px; border-radius: 12px; }
+.settings-card input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  margin: 10px 0;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+}
+.settings-card input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, .14);
+}
+.sidebar-links { display: grid; gap: 8px; margin-bottom: 10px; }
+.sidebar-links a, .sidebar-links button {
+  width: 100%;
+  color: #bae6fd;
+  text-align: center;
+  text-decoration: none;
+  background: rgba(56,189,248,.10);
+  border: 1px solid rgba(56,189,248,.16);
+  border-radius: 13px;
+  padding: 10px;
+  font-weight: 900;
+}
+.sidebar-links button.danger-link { color:#fecaca; background:rgba(239,68,68,.14); border-color:rgba(239,68,68,.18); }
 
 @media (max-width: 900px) {
   .auth-shell { grid-template-columns: 1fr; }
@@ -638,6 +733,7 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
     </div>
 
     <div id="authCard" class="auth-card"></div>
+    <div class="legal-links legal-static-links"><a href="/privacy" target="_blank">Política de privacidad</a><a href="/terms" target="_blank">Términos de uso</a></div>
   </div>
 </section>
 
@@ -693,6 +789,7 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
     <div id="history" class="chat-list"></div>
 
     <div class="sidebar-bottom">
+      <div class="sidebar-links"><button onclick="openSettings()">⚙️ Ajustes y privacidad</button></div>
       <button class="logout" onclick="logout()">Cerrar sesión</button>
     </div>
   </aside>
@@ -706,6 +803,7 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 
       <div class="inline-actions">
         <button class="btn-secondary" id="surveyButton" onclick="showSurveyDemo()">Encuesta</button>
+        <button class="btn-secondary" onclick="openSettings()">Ajustes</button>
         <button class="btn-danger" onclick="deleteAllChats()">Borrar historial</button>
       </div>
     </div>
@@ -781,9 +879,47 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
       <textarea id="surveyComments" placeholder="Escribe algún comentario..."></textarea>
     </div>
 
+    <div class="consent-box">
+      <label><input type="checkbox" id="surveyConsent"> <span>Acepto que mis respuestas se usen de forma anónima con fines académicos y de mejora del sistema Nexo IA.</span></label>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-secondary" onclick="dismissSurvey()">Después</button>
       <button class="btn-primary" onclick="submitSurvey()">Enviar encuesta</button>
+    </div>
+  </div>
+</div>
+
+<div id="settingsModal" class="modal-backdrop">
+  <div class="modal">
+    <h2>⚙️ Ajustes y privacidad</h2>
+    <p>Administra tu cuenta, consulta documentos legales y desbloquea herramientas de desarrollador solo si tienes clave.</p>
+
+    <div class="settings-grid">
+      <div class="settings-card">
+        <h3>Cuenta</h3>
+        <p id="settingsUserEmail">Sesión activa en Nexo IA.</p>
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="window.open('/privacy', '_blank')">Privacidad</button>
+          <button class="btn-secondary" onclick="window.open('/terms', '_blank')">Términos</button>
+        </div>
+        <button class="btn-danger" onclick="deleteAccount()">Eliminar mi cuenta</button>
+      </div>
+
+      <div class="settings-card">
+        <h3>Modo desarrollador</h3>
+        <p id="adminModeStatus" class="admin-locked">Bloqueado. Solo para el equipo de desarrollo.</p>
+        <input id="adminSecretInput" type="password" placeholder="ADMIN_SECRET">
+        <div class="modal-actions">
+          <button class="btn-primary" onclick="unlockAdminMode()">Desbloquear</button>
+          <button class="btn-secondary" onclick="clearAdminMode()">Bloquear</button>
+        </div>
+        <button id="openResearchBtn" class="btn-secondary" onclick="openResearchPanel()" style="display:none">Abrir panel científico</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeSettings()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -800,6 +936,8 @@ let currentFilter = "all";
 let pairExpiresAt = null;
 let pairTimer = null;
 let surveyStatus = null;
+let currentUser = null;
+let adminKey = localStorage.getItem("nexo_admin_key") || "";
 
 const authScreen = document.getElementById("authScreen");
 const authCard = document.getElementById("authCard");
@@ -818,6 +956,11 @@ const generateCodeBtn = document.getElementById("generateCodeBtn");
 const unlinkAlexaBtn = document.getElementById("unlinkAlexaBtn");
 const surveyModal = document.getElementById("surveyModal");
 const surveyButton = document.getElementById("surveyButton");
+const settingsModal = document.getElementById("settingsModal");
+const settingsUserEmail = document.getElementById("settingsUserEmail");
+const adminModeStatus = document.getElementById("adminModeStatus");
+const adminSecretInput = document.getElementById("adminSecretInput");
+const openResearchBtn = document.getElementById("openResearchBtn");
 
 function getProviderName(value) {
   const names = {
@@ -864,6 +1007,10 @@ function renderAuth() {
       <p>Usa un correo real. Te enviaremos un código de verificación.</p>
       <div class="field"><label>Correo</label><input id="authEmail" placeholder="tu@email.com"></div>
       <div class="field"><label>Contraseña</label><input id="authPassword" type="password" placeholder="Mínimo 8 caracteres"></div>
+      <div class="consent-box">
+        <label><input type="checkbox" id="acceptTerms"> <span>Acepto los <a href="/terms" target="_blank">términos de uso</a>.</span></label>
+        <label style="margin-top:8px"><input type="checkbox" id="acceptPrivacy"> <span>Acepto la <a href="/privacy" target="_blank">política de privacidad</a>.</span></label>
+      </div>
       <button class="btn-primary" onclick="register()">Crear cuenta</button>
       <div class="auth-links"><button class="link-btn" onclick="setAuthMode('login')">Ya tengo cuenta</button></div>
     `;
@@ -960,15 +1107,18 @@ async function login() {
 async function register() {
   const email = document.getElementById("authEmail").value.trim().toLowerCase();
   const password = document.getElementById("authPassword").value;
+  const accept_terms = document.getElementById("acceptTerms")?.checked === true;
+  const accept_privacy = document.getElementById("acceptPrivacy")?.checked === true;
 
   if (!isValidEmail(email)) return alert("Ingresa un correo válido.");
   if (!isValidPassword(password)) return alert("La contraseña debe tener al menos 8 caracteres.");
+  if (!accept_terms || !accept_privacy) return alert("Debes aceptar términos y privacidad para crear tu cuenta.");
 
   try {
     const res = await fetch(API + "/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, accept_terms, accept_privacy })
     });
 
     const data = await res.json();
@@ -1082,6 +1232,98 @@ async function resetPassword() {
   }
 }
 
+async function loadMe() {
+  try {
+    const res = await fetch(API + "/me", { headers: authHeaders() });
+    if (!res.ok) return;
+    currentUser = await res.json();
+  } catch {
+    currentUser = null;
+  }
+}
+
+function updateAdminUi() {
+  const hasKey = Boolean(adminKey);
+  if (adminSecretInput) adminSecretInput.value = adminKey || "";
+  if (adminModeStatus) {
+    adminModeStatus.textContent = hasKey ? "Desbloqueado en este navegador." : "Bloqueado. Solo para el equipo de desarrollo.";
+    adminModeStatus.className = hasKey ? "admin-unlocked" : "admin-locked";
+  }
+  if (openResearchBtn) openResearchBtn.style.display = hasKey ? "block" : "none";
+  if (settingsUserEmail) settingsUserEmail.textContent = currentUser?.email ? `Sesión: ${currentUser.email}` : "Sesión activa en Nexo IA.";
+}
+
+function openSettings() {
+  updateAdminUi();
+  settingsModal.style.display = "flex";
+}
+
+function closeSettings() {
+  settingsModal.style.display = "none";
+}
+
+async function unlockAdminMode() {
+  const provided = adminSecretInput.value.trim();
+  if (!provided) return alert("Escribe la clave admin.");
+
+  try {
+    const res = await fetch(API + "/admin/unlock", {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ admin_secret: provided })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      return alert(data.error || "Clave admin incorrecta.");
+    }
+
+    adminKey = provided;
+    localStorage.setItem("nexo_admin_key", provided);
+    updateAdminUi();
+    alert("Modo admin desbloqueado.");
+  } catch {
+    alert(showWakeMessage());
+  }
+}
+
+function clearAdminMode() {
+  adminKey = "";
+  localStorage.removeItem("nexo_admin_key");
+  updateAdminUi();
+}
+
+function openResearchPanel() {
+  if (!adminKey) return alert("Primero desbloquea el modo admin.");
+  window.open("/admin/research", "_blank");
+}
+
+
+async function deleteAccount() {
+  const confirmation = prompt("Para eliminar tu cuenta escribe ELIMINAR. Esta acción no se puede deshacer.");
+  if (confirmation !== "ELIMINAR") return;
+
+  try {
+    const res = await fetch(API + "/account", {
+      method: "DELETE",
+      headers: authHeaders()
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      alert("Cuenta eliminada correctamente.");
+      localStorage.removeItem("token");
+      location.reload();
+    } else {
+      alert(data.error || "No se pudo eliminar la cuenta.");
+    }
+  } catch {
+    alert(showWakeMessage());
+  }
+}
+
 function logout() {
   localStorage.removeItem("token");
   location.reload();
@@ -1121,7 +1363,8 @@ function clearEmptyState() {
   if (empty) empty.remove();
 }
 
-function startApp() {
+async function startApp() {
+  await loadMe();
   authScreen.style.display = "none";
   app.style.display = "flex";
   updateProviderLabel();
@@ -1527,8 +1770,15 @@ async function submitSurvey() {
     usefulness: Number(document.getElementById("surveyUsefulness").value),
     preferred_use: document.getElementById("surveyPreferred").value === "true",
     best_ai: document.getElementById("surveyBestAi").value,
-    comments: document.getElementById("surveyComments").value.trim()
+    comments: document.getElementById("surveyComments").value.trim(),
+    consent_academic: document.getElementById("surveyConsent")?.checked === true,
+    source: "web"
   };
+
+  if (!payload.consent_academic) {
+    alert("Debes aceptar el uso académico anónimo para enviar la encuesta.");
+    return;
+  }
 
   try {
     const res = await fetch(API + "/survey/submit", {

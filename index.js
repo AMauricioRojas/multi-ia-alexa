@@ -63,6 +63,78 @@ app.get("/keep-alive", (req, res) => {
   });
 });
 
+
+function renderPublicPage(title, subtitle, bodyHtml) {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title} | Nexo IA</title>
+<style>
+  body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; background:#020617; color:#f8fafc; line-height:1.65; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 42px 20px; }
+  .card { background: rgba(15,23,42,.82); border:1px solid rgba(148,163,184,.22); border-radius: 28px; padding: 30px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
+  h1 { font-size: clamp(32px, 5vw, 56px); margin: 0 0 8px; letter-spacing: -.05em; }
+  h2 { margin-top: 28px; color:#93c5fd; }
+  p, li { color:#cbd5e1; }
+  a { color:#7dd3fc; font-weight: 800; }
+  .muted { color:#94a3b8; }
+  .pill { display:inline-block; background:rgba(56,189,248,.14); color:#bae6fd; border:1px solid rgba(56,189,248,.22); padding:8px 12px; border-radius:999px; font-weight:900; }
+</style>
+</head>
+<body><main class="wrap"><section class="card"><span class="pill">Nexo IA</span><h1>${title}</h1><p class="muted">${subtitle}</p>${bodyHtml}<p><a href="/">Volver a Nexo IA</a></p></section></main></body></html>`;
+}
+
+app.get("/privacy", (req, res) => {
+  res.type("html").send(renderPublicPage(
+    "Política de privacidad",
+    "Última actualización: 2026. Documento para uso académico y beta de Nexo IA.",
+    `<h2>1. Datos que se recopilan</h2>
+     <p>Nexo IA recopila correo electrónico, contraseña cifrada, preguntas realizadas desde web, app móvil o Alexa, respuestas generadas, estado de vinculación con Alexa y respuestas de encuesta académica.</p>
+     <h2>2. Uso de los datos</h2>
+     <p>Los datos se usan para iniciar sesión, guardar historial, conectar Alexa, recuperar contraseña, medir la calidad de experiencia y apoyar el análisis académico del proyecto.</p>
+     <h2>3. Encuestas e investigación</h2>
+     <p>Las encuestas se analizan de forma agregada. Para reportes científicos se recomienda usar identificadores anónimos en lugar de correos personales.</p>
+     <h2>4. Seguridad</h2>
+     <p>Las contraseñas se almacenan cifradas mediante hash. Las rutas administrativas requieren una clave privada de desarrollador.</p>
+     <h2>5. Eliminación de cuenta</h2>
+     <p>El usuario puede eliminar su cuenta desde la web/app o solicitar ayuda desde la página de eliminación de cuenta.</p>
+     <h2>6. Contacto</h2>
+     <p>Para solicitudes relacionadas con datos del proyecto, contacta al equipo desarrollador de Nexo IA.</p>`
+  ));
+});
+
+app.get("/terms", (req, res) => {
+  res.type("html").send(renderPublicPage(
+    "Términos de uso",
+    "Condiciones generales para usar Nexo IA en beta académica.",
+    `<h2>1. Uso permitido</h2>
+     <p>Nexo IA está diseñado como asistente académico y demostración tecnológica que conecta web, app móvil y Alexa con modelos de inteligencia artificial.</p>
+     <h2>2. Respuestas de IA</h2>
+     <p>Las respuestas pueden contener errores. El usuario debe verificar información importante antes de tomar decisiones.</p>
+     <h2>3. Cuentas</h2>
+     <p>El usuario debe utilizar un correo válido y proteger su contraseña. No debe intentar acceder a cuentas ajenas.</p>
+     <h2>4. Disponibilidad</h2>
+     <p>El servicio puede estar en modo beta, mantenimiento o ahorro de recursos dependiendo del entorno de despliegue.</p>
+     <h2>5. Uso académico</h2>
+     <p>La información agregada de uso y encuesta puede utilizarse para documentación técnica y reporte científico del proyecto.</p>`
+  ));
+});
+
+app.get("/delete-account", (req, res) => {
+  res.type("html").send(renderPublicPage(
+    "Eliminación de cuenta",
+    "Opciones para borrar o solicitar eliminación de datos en Nexo IA.",
+    `<h2>Eliminar desde la web o app</h2>
+     <p>Inicia sesión en Nexo IA y usa la opción <b>Eliminar cuenta</b>. Esto elimina la cuenta y la información asociada mediante las relaciones de base de datos.</p>
+     <h2>Solicitar ayuda</h2>
+     <p>Si no puedes iniciar sesión, solicita apoyo al equipo desarrollador indicando el correo registrado. El equipo podrá revisar la solicitud desde el panel administrativo.</p>
+     <h2>Importante</h2>
+     <p>Una vez eliminada la cuenta, el historial y la vinculación con Alexa dejan de estar disponibles.</p>`
+  ));
+});
+
 /* =========================
    DB
 ========================= */
@@ -186,6 +258,21 @@ async function initDatabase() {
 
   await pool.query(`
     ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMP;
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS privacy_accepted_at TIMESTAMP;
+  `);
+
+  await pool.query(`
+    ALTER TABLE users
     ADD COLUMN IF NOT EXISTS verification_code_hash TEXT;
   `);
 
@@ -217,6 +304,37 @@ async function initDatabase() {
   await pool.query(`
     ALTER TABLE chats
     ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
+  `);
+
+  await pool.query(`
+    ALTER TABLE survey_feedback
+    ADD COLUMN IF NOT EXISTS consent_academic BOOLEAN DEFAULT false;
+  `);
+
+  await pool.query(`
+    ALTER TABLE survey_feedback
+    ADD COLUMN IF NOT EXISTS research_context TEXT DEFAULT 'Nexo IA investigación académica';
+  `);
+
+  await pool.query(`
+    ALTER TABLE survey_feedback
+    ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'web';
+  `);
+
+  await pool.query(`
+    ALTER TABLE survey_feedback
+    ADD COLUMN IF NOT EXISTS user_agent TEXT;
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS account_delete_requests (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      email TEXT,
+      reason TEXT,
+      status TEXT DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   await pool.query(`
@@ -383,7 +501,24 @@ function getClientIp(req) {
   );
 }
 
-async function sendNexoEmail({ to, subject, text }) {
+function getAdminEmails() {
+  return String(process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((email) => normalizeEmail(email))
+    .filter(Boolean);
+}
+
+function isAdminUserRow(user) {
+  if (!user) return false;
+  const role = String(user.role || "user").toLowerCase();
+  return role === "admin" || getAdminEmails().includes(normalizeEmail(user.email));
+}
+
+function parseBoolean(value) {
+  return value === true || value === "true" || value === "on" || value === "1";
+}
+
+async function sendNexoEmail({ to, subject, text, html }) {
   const mode = process.env.MAIL_MODE || "console";
 
   if (mode === "resend" && process.env.RESEND_API_KEY) {
@@ -399,7 +534,8 @@ async function sendNexoEmail({ to, subject, text }) {
         from,
         to,
         subject,
-        text
+        text,
+        ...(html ? { html } : {})
       })
     });
 
@@ -498,6 +634,25 @@ function adminAuth(req, res, next) {
   next();
 }
 
+app.post("/admin/unlock", auth, async (req, res) => {
+  const adminSecret = process.env.ADMIN_SECRET;
+  const provided = String(req.body?.admin_secret || "");
+
+  if (!adminSecret) {
+    return res.status(503).json({ error: "Admin no configurado" });
+  }
+
+  if (provided !== adminSecret) {
+    return res.status(401).json({ error: "Clave admin incorrecta" });
+  }
+
+  res.json({
+    ok: true,
+    message: "Modo admin desbloqueado en este dispositivo",
+    admin_panel: "/admin/research"
+  });
+});
+
 async function getSystemSetting(key, fallback = "false") {
   const result = await pool.query(
     "SELECT value FROM system_settings WHERE key=$1",
@@ -584,6 +739,8 @@ app.post("/register", async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
     const password = String(req.body.password || "");
+    const acceptTerms = parseBoolean(req.body.accept_terms);
+    const acceptPrivacy = parseBoolean(req.body.accept_privacy);
 
     if (!email || !password) {
       return res.status(400).json({
@@ -600,6 +757,12 @@ app.post("/register", async (req, res) => {
     if (!isValidPassword(password)) {
       return res.status(400).json({
         error: "La contraseña debe tener al menos 8 caracteres"
+      });
+    }
+
+    if (!acceptTerms || !acceptPrivacy) {
+      return res.status(400).json({
+        error: "Debes aceptar los términos de uso y la política de privacidad para crear tu cuenta"
       });
     }
 
@@ -629,11 +792,13 @@ app.post("/register", async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
 
+    const role = getAdminEmails().includes(email) ? "admin" : "user";
+
     const inserted = await pool.query(
-      `INSERT INTO users (email, password, email_verified)
-       VALUES ($1, $2, false)
+      `INSERT INTO users (email, password, email_verified, role, terms_accepted_at, privacy_accepted_at)
+       VALUES ($1, $2, false, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        RETURNING id, email`,
-      [email, hash]
+      [email, hash, role]
     );
 
     const user = inserted.rows[0];
@@ -743,7 +908,8 @@ app.post("/login", async (req, res) => {
     const token = jwt.sign(
       {
         user_id: user.id,
-        email: user.email
+        email: user.email,
+        role: isAdminUserRow(user) ? "admin" : "user"
       },
       process.env.JWT_SECRET,
       {
@@ -1046,7 +1212,7 @@ app.post("/reset-password", async (req, res) => {
 app.get("/me", auth, async (req, res) => {
   try {
     const userResult = await pool.query(
-      "SELECT id, email, alexa_code, email_verified FROM users WHERE id=$1",
+      "SELECT id, email, alexa_code, email_verified, role, terms_accepted_at, privacy_accepted_at FROM users WHERE id=$1",
       [req.user.user_id]
     );
 
@@ -1059,8 +1225,13 @@ app.get("/me", auth, async (req, res) => {
       [req.user.user_id]
     );
 
+    const user = userResult.rows[0];
+    const isAdmin = isAdminUserRow(user);
+
     res.json({
-      ...userResult.rows[0],
+      ...user,
+      role: isAdmin ? "admin" : (user.role || "user"),
+      is_admin: isAdmin,
       alexa_linked: linkResult.rows.length > 0,
       alexa_link: linkResult.rows[0] || null
     });
@@ -1308,13 +1479,40 @@ app.post("/survey/submit", auth, async (req, res) => {
     const completeness = Number(req.body.completeness || 0);
     const usefulness = Number(req.body.usefulness || 0);
     const preferredUse = Boolean(req.body.preferred_use);
-    const bestAi = cleanText(req.body.best_ai);
+    const bestAi = cleanText(req.body.best_ai || "auto");
     const comments = cleanText(req.body.comments);
+    const consentAcademic = req.body.consent_academic === true;
+    const source = ["web", "mobile", "alexa"].includes(req.body.source) ? req.body.source : "web";
+    const validBestAi = ["auto", "chatgpt", "groq_fast", "groq_power", "gemini"].includes(bestAi);
+    const validScores = [clarity, completeness, usefulness].every((value) => Number.isInteger(value) && value >= 1 && value <= 5);
+
+    if (!validScores) {
+      return res.status(400).json({ error: "Las calificaciones deben estar entre 1 y 5" });
+    }
+
+    if (!validBestAi) {
+      return res.status(400).json({ error: "Selecciona una IA válida" });
+    }
+
+    if (!consentAcademic) {
+      return res.status(400).json({
+        error: "Debes aceptar el uso académico anónimo de tus respuestas para enviar la encuesta"
+      });
+    }
+
+    const existing = await pool.query(
+      "SELECT id FROM survey_feedback WHERE user_id=$1 LIMIT 1",
+      [req.user.user_id]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: "Ya respondiste la encuesta. Gracias por participar." });
+    }
 
     await pool.query(
       `INSERT INTO survey_feedback
-       (user_id, clarity, completeness, usefulness, preferred_use, best_ai, comments)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       (user_id, clarity, completeness, usefulness, preferred_use, best_ai, comments, consent_academic, research_context, source, user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Nexo IA investigación académica', $9, $10)`,
       [
         req.user.user_id,
         clarity,
@@ -1322,7 +1520,10 @@ app.post("/survey/submit", auth, async (req, res) => {
         usefulness,
         preferredUse,
         bestAi,
-        comments
+        comments,
+        consentAcademic,
+        source,
+        req.headers["user-agent"] || "unknown"
       ]
     );
 
@@ -2299,6 +2500,301 @@ app.get("/admin/metrics", adminAuth, async (req, res) => {
       error: "Error obteniendo métricas",
       detalle: error.message
     });
+  }
+});
+
+
+
+/* =========================
+   ACCOUNT / LEGAL USER ACTIONS
+========================= */
+app.delete("/account", auth, async (req, res) => {
+  try {
+    const userResult = await pool.query("SELECT id, email FROM users WHERE id=$1", [req.user.user_id]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    const user = userResult.rows[0];
+
+    await pool.query("DELETE FROM auth_attempts WHERE email=$1", [user.email]);
+    await pool.query("DELETE FROM users WHERE id=$1", [user.id]);
+
+    res.json({ ok: true, message: "Cuenta eliminada correctamente" });
+  } catch (error) {
+    console.log("DELETE ACCOUNT ERROR:", error.message);
+    res.status(500).json({ error: "No se pudo eliminar la cuenta", detalle: error.message });
+  }
+});
+
+app.post("/account/delete-request", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const reason = cleanText(req.body.reason || "Solicitud de eliminación de cuenta");
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: "Ingresa un correo válido" });
+    }
+
+    const userResult = await pool.query("SELECT id FROM users WHERE email=$1", [email]);
+    const userId = userResult.rows[0]?.id || null;
+
+    await pool.query(
+      `INSERT INTO account_delete_requests (user_id, email, reason)
+       VALUES ($1, $2, $3)`,
+      [userId, email, reason]
+    );
+
+    if (process.env.ADMIN_REPORT_EMAIL) {
+      await sendNexoEmail({
+        to: process.env.ADMIN_REPORT_EMAIL,
+        subject: "Solicitud de eliminación de cuenta - Nexo IA",
+        text: `Se recibió una solicitud de eliminación para ${email}.\nMotivo: ${reason}`
+      }).catch((error) => console.log("DELETE REQUEST EMAIL ERROR:", error.message));
+    }
+
+    res.json({ ok: true, message: "Solicitud recibida. El equipo desarrollador la revisará." });
+  } catch (error) {
+    console.log("DELETE REQUEST ERROR:", error.message);
+    res.status(500).json({ error: "No se pudo registrar la solicitud", detalle: error.message });
+  }
+});
+
+function csvEscape(value) {
+  if (value === null || value === undefined) return "";
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+function surveyRowsToCsv(rows) {
+  const header = [
+    "participant_code",
+    "clarity",
+    "completeness",
+    "usefulness",
+    "preferred_use",
+    "best_ai",
+    "comments",
+    "source",
+    "created_at"
+  ];
+
+  const lines = [header.join(",")];
+
+  for (const row of rows) {
+    lines.push([
+      `P-${row.user_id}`,
+      row.clarity,
+      row.completeness,
+      row.usefulness,
+      row.preferred_use,
+      row.best_ai,
+      row.comments,
+      row.source,
+      row.created_at
+    ].map(csvEscape).join(","));
+  }
+
+  return lines.join("\n");
+}
+
+async function getResearchDataset() {
+  const metrics = await pool.query(`
+    SELECT
+      (SELECT COUNT(*)::int FROM users) AS total_users,
+      (SELECT COUNT(*)::int FROM users WHERE email_verified=true) AS verified_users,
+      (SELECT COUNT(*)::int FROM chats WHERE role='user' AND deleted_at IS NULL) AS total_questions,
+      (SELECT COUNT(*)::int FROM chats WHERE role='user' AND source='web' AND deleted_at IS NULL) AS web_questions,
+      (SELECT COUNT(*)::int FROM chats WHERE role='user' AND source='mobile' AND deleted_at IS NULL) AS mobile_questions,
+      (SELECT COUNT(*)::int FROM chats WHERE role='user' AND source='alexa' AND deleted_at IS NULL) AS alexa_questions,
+      (SELECT COUNT(*)::int FROM survey_feedback) AS total_surveys
+  `);
+
+  const survey = await pool.query(`
+    SELECT
+      COUNT(*)::int AS total_surveys,
+      ROUND(AVG(clarity)::numeric, 2) AS avg_clarity,
+      ROUND(AVG(completeness)::numeric, 2) AS avg_completeness,
+      ROUND(AVG(usefulness)::numeric, 2) AS avg_usefulness,
+      ROUND((COUNT(*) FILTER (WHERE preferred_use=true)::numeric / NULLIF(COUNT(*), 0)) * 100, 2) AS preferred_percent
+    FROM survey_feedback
+  `);
+
+  const bestAi = await pool.query(`
+    SELECT best_ai, COUNT(*)::int AS total
+    FROM survey_feedback
+    GROUP BY best_ai
+    ORDER BY total DESC
+  `);
+
+  const iaUsage = await pool.query(`
+    SELECT ia, COUNT(*)::int AS total
+    FROM chats
+    WHERE role='ai' AND deleted_at IS NULL
+    GROUP BY ia
+    ORDER BY total DESC
+    LIMIT 10
+  `);
+
+  const feedback = await pool.query(`
+    SELECT user_id, clarity, completeness, usefulness, preferred_use, best_ai, comments, source, created_at
+    FROM survey_feedback
+    ORDER BY created_at DESC
+    LIMIT 200
+  `);
+
+  const deleteRequests = await pool.query(`
+    SELECT id, email, reason, status, created_at
+    FROM account_delete_requests
+    ORDER BY created_at DESC
+    LIMIT 50
+  `);
+
+  return {
+    ok: true,
+    generated_at: new Date().toISOString(),
+    metrics: metrics.rows[0],
+    survey: survey.rows[0],
+    best_ai: bestAi.rows,
+    ia_usage: iaUsage.rows,
+    feedback: feedback.rows,
+    delete_requests: deleteRequests.rows
+  };
+}
+
+app.get("/admin/research", (req, res) => {
+  res.type("html").send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel científico | Nexo IA</title>
+<style>
+  body { margin:0; background:#020617; color:#f8fafc; font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; }
+  .wrap { max-width:1180px; margin:0 auto; padding:28px 18px 60px; }
+  .hero { background:linear-gradient(135deg, rgba(139,92,246,.24), rgba(56,189,248,.12)); border:1px solid rgba(148,163,184,.22); border-radius:28px; padding:24px; margin-bottom:18px; }
+  h1 { margin:0; font-size: clamp(30px, 5vw, 54px); letter-spacing:-.05em; }
+  p { color:#cbd5e1; line-height:1.6; }
+  input { width:100%; padding:14px; border-radius:14px; border:1px solid rgba(148,163,184,.26); background:#0f172a; color:white; box-sizing:border-box; }
+  button { border:0; border-radius:14px; padding:12px 14px; font-weight:900; cursor:pointer; color:white; background:#2563eb; margin:6px 6px 6px 0; }
+  button.secondary { background:#334155; } button.danger { background:#7f1d1d; }
+  .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:12px; margin:16px 0; }
+  .card, .tableBox { background:rgba(15,23,42,.82); border:1px solid rgba(148,163,184,.20); border-radius:20px; padding:16px; }
+  .metric { color:#7dd3fc; font-size:28px; font-weight:1000; }
+  .label { color:#94a3b8; font-weight:800; font-size:12px; text-transform:uppercase; }
+  table { width:100%; border-collapse: collapse; font-size:14px; } th,td { border-bottom:1px solid rgba(148,163,184,.16); padding:10px; text-align:left; vertical-align:top; } th { color:#93c5fd; }
+  .muted { color:#94a3b8; } .ok { color:#86efac; }
+</style>
+</head>
+<body><main class="wrap">
+<section class="hero"><h1>Panel científico Nexo IA</h1><p>Consulta métricas de uso, encuestas anónimas, exportaciones y solicitudes de eliminación. Los datos requieren la clave privada <b>ADMIN_SECRET</b>.</p></section>
+<section class="card"><label class="label">Clave de desarrollador</label><input id="key" type="password" placeholder="ADMIN_SECRET"><div><button onclick="saveKey()">Guardar clave</button><button class="secondary" onclick="loadData()">Cargar datos</button><button class="secondary" onclick="downloadCsv()">Exportar CSV</button><button class="secondary" onclick="downloadJson()">Exportar JSON</button><button class="secondary" onclick="sendReport()">Enviar reporte al correo</button><button class="danger" onclick="logoutKey()">Borrar clave local</button></div><p id="status" class="muted"></p></section>
+<section id="cards" class="cards"></section>
+<section class="tableBox"><h2>Encuestas recientes</h2><div id="feedback"></div></section>
+<section class="tableBox"><h2>Solicitudes de eliminación</h2><div id="deleteRequests"></div></section>
+</main><script>
+const keyInput = document.getElementById('key');
+const statusBox = document.getElementById('status');
+keyInput.value = localStorage.getItem('nexo_admin_key') || '';
+function headers(){ return {'x-admin-key': keyInput.value}; }
+function saveKey(){ localStorage.setItem('nexo_admin_key', keyInput.value); statusBox.textContent='Clave guardada solo en este navegador.'; }
+function logoutKey(){ localStorage.removeItem('nexo_admin_key'); keyInput.value=''; statusBox.textContent='Clave eliminada del navegador.'; }
+async function fetchAdmin(url, options={}){ const res = await fetch(url, {...options, headers:{...(options.headers||{}), ...headers()}}); if(!res.ok){ const txt = await res.text(); throw new Error(txt || 'No autorizado'); } return res; }
+function metric(label, value){ return '<div class="card"><div class="metric">'+(value ?? 0)+'</div><div class="label">'+label+'</div></div>'; }
+function escapeHtml(value){ return String(value ?? '').replace(/[<>&]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c]; }); }
+function renderTable(rows){
+  if(!rows || !rows.length) return '<p class="muted">Sin datos todavía.</p>';
+  const keys=Object.keys(rows[0]);
+  let html='<table><thead><tr>';
+  keys.forEach(function(k){ html += '<th>'+escapeHtml(k)+'</th>'; });
+  html += '</tr></thead><tbody>';
+  rows.forEach(function(r){
+    html += '<tr>';
+    keys.forEach(function(k){ html += '<td>'+escapeHtml(r[k])+'</td>'; });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
+async function loadData(){ try{ statusBox.textContent='Cargando...'; const res = await fetchAdmin('/admin/research-data'); const data = await res.json(); const m=data.metrics||{}, s=data.survey||{}; document.getElementById('cards').innerHTML = metric('Usuarios', m.total_users)+metric('Verificados', m.verified_users)+metric('Preguntas web', m.web_questions)+metric('Preguntas móvil', m.mobile_questions)+metric('Preguntas Alexa', m.alexa_questions)+metric('Encuestas', s.total_surveys)+metric('Claridad promedio', s.avg_clarity || '0')+metric('Utilidad promedio', s.avg_usefulness || '0')+metric('Prefieren Nexo IA', (s.preferred_percent || 0)+'%'); document.getElementById('feedback').innerHTML = renderTable((data.feedback||[]).map(r=>({participante:'P-'+r.user_id, claridad:r.clarity, completas:r.completeness, utilidad:r.usefulness, prefiere:r.preferred_use, ia:r.best_ai, comentario:r.comments, origen:r.source, fecha:r.created_at}))); document.getElementById('deleteRequests').innerHTML = renderTable(data.delete_requests||[]); statusBox.textContent='Datos actualizados: '+data.generated_at; }catch(e){ statusBox.textContent='Error: '+e.message; }}
+async function downloadCsv(){ try{ const res=await fetchAdmin('/admin/export/surveys.csv'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='nexo_ia_encuestas.csv'; a.click(); URL.revokeObjectURL(url); }catch(e){ alert(e.message); }}
+async function downloadJson(){ try{ const res=await fetchAdmin('/admin/export/metrics.json'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='nexo_ia_metricas.json'; a.click(); URL.revokeObjectURL(url); }catch(e){ alert(e.message); }}
+async function sendReport(){ try{ const res=await fetchAdmin('/admin/send-survey-report', {method:'POST'}); const data=await res.json(); alert(data.message || 'Reporte enviado.'); }catch(e){ alert(e.message); }}
+</script></body></html>`);
+});
+
+app.get("/admin/research-data", adminAuth, async (req, res) => {
+  try {
+    res.json(await getResearchDataset());
+  } catch (error) {
+    console.log("RESEARCH DATA ERROR:", error.message);
+    res.status(500).json({ error: "No se pudieron obtener datos de investigación", detalle: error.message });
+  }
+});
+
+app.get("/admin/export/metrics.json", adminAuth, async (req, res) => {
+  try {
+    res.setHeader("Content-Disposition", "attachment; filename=nexo_ia_metricas.json");
+    res.json(await getResearchDataset());
+  } catch (error) {
+    res.status(500).json({ error: "No se pudo exportar JSON", detalle: error.message });
+  }
+});
+
+app.get("/admin/export/surveys.csv", adminAuth, async (req, res) => {
+  try {
+    const feedback = await pool.query(`
+      SELECT user_id, clarity, completeness, usefulness, preferred_use, best_ai, comments, source, created_at
+      FROM survey_feedback
+      ORDER BY created_at DESC
+    `);
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=nexo_ia_encuestas.csv");
+    res.send(surveyRowsToCsv(feedback.rows));
+  } catch (error) {
+    res.status(500).json({ error: "No se pudo exportar CSV", detalle: error.message });
+  }
+});
+
+app.post("/admin/send-survey-report", adminAuth, async (req, res) => {
+  try {
+    const to = process.env.ADMIN_REPORT_EMAIL;
+
+    if (!to) {
+      return res.status(400).json({ error: "Configura ADMIN_REPORT_EMAIL en Render para enviar reportes." });
+    }
+
+    const dataset = await getResearchDataset();
+    const feedbackRows = dataset.feedback || [];
+    const csv = surveyRowsToCsv(feedbackRows);
+    const s = dataset.survey || {};
+    const m = dataset.metrics || {};
+
+    const text = `Reporte Nexo IA\n\n` +
+      `Generado: ${dataset.generated_at}\n` +
+      `Usuarios: ${m.total_users || 0}\n` +
+      `Usuarios verificados: ${m.verified_users || 0}\n` +
+      `Preguntas web: ${m.web_questions || 0}\n` +
+      `Preguntas móvil: ${m.mobile_questions || 0}\n` +
+      `Preguntas Alexa: ${m.alexa_questions || 0}\n` +
+      `Encuestas respondidas: ${s.total_surveys || 0}\n` +
+      `Claridad promedio: ${s.avg_clarity || 0}\n` +
+      `Completitud promedio: ${s.avg_completeness || 0}\n` +
+      `Utilidad promedio: ${s.avg_usefulness || 0}\n` +
+      `Prefieren Nexo IA: ${s.preferred_percent || 0}%\n\n` +
+      `CSV de encuestas recientes:\n${csv}`;
+
+    await sendNexoEmail({
+      to,
+      subject: "Reporte de encuestas Nexo IA",
+      text
+    });
+
+    res.json({ ok: true, message: `Reporte enviado a ${to}` });
+  } catch (error) {
+    console.log("SEND REPORT ERROR:", error.message);
+    res.status(500).json({ error: "No se pudo enviar el reporte", detalle: error.message });
   }
 });
 
