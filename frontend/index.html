@@ -318,13 +318,128 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
   font-weight: 900;
 }
 
-.provider-select {
+.custom-ai-select {
+  position: relative;
   width: 100%;
-  padding: 12px;
-  border-radius: 15px;
-  background: rgba(255,255,255,.08);
-  color: white;
-  border: 1px solid var(--line);
+  margin-top: 10px;
+  z-index: 20;
+}
+
+.custom-ai-trigger {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, .22);
+  background:
+    linear-gradient(180deg, rgba(30, 41, 72, .98), rgba(13, 20, 39, .98));
+  color: #f8fafc;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 24px rgba(0,0,0,.18);
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.custom-ai-trigger:hover {
+  border-color: rgba(56, 189, 248, .55);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 3px rgba(56, 189, 248, .09), 0 12px 28px rgba(0,0,0,.24);
+}
+
+.custom-ai-trigger:focus {
+  outline: none;
+  border-color: rgba(139, 92, 246, .78);
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, .16), 0 12px 28px rgba(0,0,0,.24);
+}
+
+.custom-ai-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.custom-ai-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--purple), var(--blue));
+  box-shadow: 0 0 14px rgba(56, 189, 248, .65);
+}
+
+.custom-ai-arrow {
+  color: #93c5fd;
+  font-size: 16px;
+  transition: transform .18s ease;
+}
+
+.custom-ai-select.open .custom-ai-arrow {
+  transform: rotate(180deg);
+}
+
+.custom-ai-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  background: rgba(8, 14, 29, .98);
+  border: 1px solid rgba(148, 163, 184, .20);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 22px 60px rgba(0,0,0,.45);
+  backdrop-filter: blur(16px);
+  z-index: 9999;
+}
+
+.custom-ai-menu.hidden {
+  display: none;
+}
+
+.custom-ai-option {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #dbeafe;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .16s ease, color .16s ease;
+}
+
+.custom-ai-option strong {
+  font-size: 14px;
+  color: inherit;
+}
+
+.custom-ai-option span {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.custom-ai-option:hover {
+  background: rgba(56, 189, 248, .12);
+  color: #ffffff;
+}
+
+.custom-ai-option.active {
+  background: linear-gradient(90deg, rgba(139, 92, 246, .34), rgba(56, 189, 248, .24));
+  color: #ffffff;
+}
+
+.custom-ai-option.active span {
+  color: #bfdbfe;
+}
+
+.custom-ai-option + .custom-ai-option {
+  border-top: 1px solid rgba(148, 163, 184, .10);
 }
 
 .filters {
@@ -770,13 +885,22 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 
       <button class="new-chat" onclick="nuevoChat()">+ Nuevo chat</button>
 
-      <select id="iaSelect" class="provider-select" onchange="updateProviderLabel()">
-        <option value="auto">Auto inteligente</option>
-        <option value="chatgpt">ChatGPT</option>
-        <option value="groq_fast">Groq rápido</option>
-        <option value="groq_power">Groq potente</option>
-        <option value="gemini">Gemini experimental</option>
-      </select>
+      <div class="custom-ai-select" id="customAiSelect">
+        <button type="button" class="custom-ai-trigger" id="customAiTrigger">
+          <span class="custom-ai-label"><span class="custom-ai-dot"></span><span id="selectedAiLabel">Auto inteligente</span></span>
+          <span class="custom-ai-arrow">▾</span>
+        </button>
+
+        <div class="custom-ai-menu hidden" id="customAiMenu">
+          <button type="button" class="custom-ai-option active" data-value="auto"><strong>Auto inteligente</strong><span>El sistema elige el mejor modelo disponible.</span></button>
+          <button type="button" class="custom-ai-option" data-value="chatgpt"><strong>ChatGPT</strong><span>Respuestas completas y equilibradas.</span></button>
+          <button type="button" class="custom-ai-option" data-value="groq_fast"><strong>Groq rápido</strong><span>Ideal para respuestas rápidas.</span></button>
+          <button type="button" class="custom-ai-option" data-value="groq_power"><strong>Groq potente</strong><span>Para respuestas más elaboradas.</span></button>
+          <button type="button" class="custom-ai-option" data-value="gemini"><strong>Gemini experimental</strong><span>Modelo alternativo para comparar.</span></button>
+        </div>
+
+        <input type="hidden" id="iaSelect" value="auto">
+      </div>
     </div>
 
     <div class="filters">
@@ -971,6 +1095,49 @@ function getProviderName(value) {
     gemini: "Gemini experimental"
   };
   return names[value] || "Auto inteligente";
+}
+
+function initializeCustomAISelect() {
+  const wrapper = document.getElementById("customAiSelect");
+  const trigger = document.getElementById("customAiTrigger");
+  const menu = document.getElementById("customAiMenu");
+  const hiddenInput = document.getElementById("iaSelect");
+  const label = document.getElementById("selectedAiLabel");
+  const options = document.querySelectorAll(".custom-ai-option");
+
+  if (!wrapper || !trigger || !menu || !hiddenInput || !label || !options.length) return;
+
+  function closeMenu() {
+    wrapper.classList.remove("open");
+    menu.classList.add("hidden");
+  }
+
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    wrapper.classList.toggle("open");
+    menu.classList.toggle("hidden");
+  });
+
+  options.forEach((option) => {
+    option.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const value = option.dataset.value || "auto";
+      hiddenInput.value = value;
+      label.innerText = getProviderName(value);
+
+      options.forEach((opt) => opt.classList.remove("active"));
+      option.classList.add("active");
+
+      updateProviderLabel();
+      closeMenu();
+    });
+  });
+
+  document.addEventListener("click", closeMenu);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeMenu();
+  });
 }
 
 function getSourceName(value) {
@@ -1801,6 +1968,7 @@ async function submitSurvey() {
   }
 }
 
+initializeCustomAISelect();
 renderAuth();
 
 if (token) {
