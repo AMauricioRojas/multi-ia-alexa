@@ -17,6 +17,7 @@ import { createChatService } from "./lib/chat-service.js";
 import { OAuthStore, oauthConfig, mountOAuth } from "./lib/oauth.js";
 import { createAlexaVerifier } from "./lib/alexa-security.js";
 import { databaseConfig } from "./lib/database.js";
+import { createEmailSender } from "./lib/email.js";
 
 const { Pool } = pkg;
 
@@ -25,7 +26,7 @@ const __dirname = path.dirname(__filename);
 
 // Importing this module does not load .env, connect to a database, or start a server.
 export function createApp({ pool, config = planConfig(), providerCall = createProviderCall(config),
-  oauth = oauthConfig(), alexaVerifier = createAlexaVerifier({ skillId: oauth.skillId }) }) {
+  oauth = oauthConfig(), alexaVerifier = createAlexaVerifier({ skillId: oauth.skillId }), mailer = createEmailSender() }) {
 const app = express();
 const usageStore = new UsageStore(pool, config);
 const oauthStore = new OAuthStore(pool, oauth);
@@ -72,7 +73,7 @@ app.get("/health", (req, res) => {
     ok: true,
     app: "Zuneri",
     release: "beta-2026-10-23",
-    capabilities: { plans: true, alexa_oauth: oauth.enabled, content_reports: true },
+    capabilities: { plans: true, alexa_oauth: oauth.enabled, content_reports: true, email_delivery: mailer.available && mailer.mode !== 'console' },
     message: "Servidor activo",
     time: new Date().toISOString()
   });
@@ -513,44 +514,13 @@ function parseBoolean(value) {
   return value === true || value === "true" || value === "on" || value === "1";
 }
 
-async function sendNexoEmail({ to, subject, text, html }) {
-  const mode = process.env.MAIL_MODE || "console";
+function requireEmailDelivery(req, res, next) {
+  if (!mailer.available) return res.status(503).json({ error: "El servicio de correos no está disponible. Inténtalo más tarde." });
+  next();
+}
 
-  if (mode === "resend" && process.env.RESEND_API_KEY) {
-    const from = process.env.EMAIL_FROM || "Zuneri <onboarding@resend.dev>";
-
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from,
-        to,
-        subject,
-        text,
-        ...(html ? { html } : {})
-      })
-    });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      console.log("RESEND ERROR:", data);
-      throw new Error(data.message || "No se pudo enviar correo");
-    }
-
-    return { ok: true, mode: "resend" };
-  }
-
-  console.log("\n================ NEXO IA EMAIL ================");
-  console.log("Para:", to);
-  console.log("Asunto:", subject);
-  console.log(text);
-  console.log("================================================\n");
-
-  return { ok: true, mode: "console" };
+async function sendNexoEmail(message) {
+  return mailer.send(message);
 }
 
 async function createVerificationCodeForUser(userId, email) {
@@ -732,7 +702,7 @@ mountOAuth(app, { store: oauthStore, auth });
 /* =========================
    REGISTER
 ========================= */
-app.post("/register", async (req, res) => {
+app.post("/register", requireEmailDelivery, async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
     const password = String(req.body.password || "");
@@ -880,6 +850,7 @@ app.post("/login", async (req, res) => {
     }
 
     if (!user.email_verified) {
+      if (!mailer.available) return res.status(503).json({ error: "El servicio de correos no está disponible. Inténtalo más tarde." });
       await registerAuthAttempt({ email, ip, type: "login", success: false });
       await createVerificationCodeForUser(user.id, user.email);
 
@@ -1015,7 +986,7 @@ app.post("/verify-email", async (req, res) => {
   }
 });
 
-app.post("/resend-verification", async (req, res) => {
+app.post("/resend-verification", requireEmailDelivery, async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
 
@@ -1048,7 +1019,7 @@ app.post("/resend-verification", async (req, res) => {
   }
 });
 
-app.post("/forgot-password", async (req, res) => {
+app.post("/forgot-password", requireEmailDelivery, async (req, res) => {
   const ip = getClientIp(req);
 
   try {

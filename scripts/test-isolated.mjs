@@ -44,7 +44,7 @@ try {
   }
   const targets = process.argv.includes('--verify-backup') ? ['scripts/verify-backup.mjs']
     : process.argv.includes('--preview') ? ['test/oauth-preview.mjs']
-    : ['--test', '--test-concurrency=1', 'test/consumption.test.js', 'test/providers.test.js', 'test/oauth.test.js', 'test/alexa-security.test.js', 'test/database.test.js'];
+    : ['--test', '--test-concurrency=1', 'test/consumption.test.js', 'test/providers.test.js', 'test/oauth.test.js', 'test/alexa-security.test.js', 'test/database.test.js', 'test/email.test.js'];
   const result = spawnSync(process.execPath, targets, {
     env, stdio: 'inherit', windowsHide: true,
   });
