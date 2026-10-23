@@ -301,12 +301,14 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
   margin-top: 12px;
 }
 
-.grid-actions button, .inline-actions button {
+.grid-actions button, .grid-actions a, .inline-actions button {
   padding: 10px 12px;
   border-radius: 13px;
   font-size: 12px;
   font-weight: 900;
 }
+
+.grid-actions a { text-align: center; text-decoration: none; }
 
 .new-chat {
   width: 100%;
@@ -867,18 +869,16 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
         <small>Estado de Alexa</small>
         <span id="alexaStatusBadge" class="alexa-status status-unlinked">Cargando...</span>
 
-        <small>Código temporal</small>
-        <div id="alexaCode" class="alexa-code">------</div>
-        <div id="alexaCountdown" class="alexa-countdown"></div>
+        <small>Vinculación segura</small>
 
         <div id="alexaHelp" class="alexa-help">
-          Genera un código y di: “mi código es...” Después confirma diciendo “sí”.
+          Abre la app de Alexa, busca Nexo IA y pulsa Vincular cuenta. Inicia sesión y autoriza la conexión.
         </div>
 
         <div class="grid-actions">
-          <button class="btn-success" id="generateCodeBtn" onclick="generateAlexaCode()">Generar</button>
+          <a class="btn-success" href="https://alexa.amazon.com" target="_blank" rel="noopener noreferrer">Abrir Alexa</a>
           <button class="btn-secondary" onclick="copyAlexaInstructions()">Copiar</button>
-          <button class="btn-warning" onclick="loadAlexaStatus()">Refrescar</button>
+          <button class="btn-warning" onclick="loadAlexaStatus()">Actualizar</button>
           <button class="btn-danger" id="unlinkAlexaBtn" onclick="unlinkAlexa()">Desvincular</button>
         </div>
       </div>
@@ -1057,8 +1057,6 @@ let authMode = "login";
 let pendingEmail = "";
 let allChats = [];
 let currentFilter = "all";
-let pairExpiresAt = null;
-let pairTimer = null;
 let surveyStatus = null;
 let currentUser = null;
 let adminKey = localStorage.getItem("nexo_admin_key") || "";
@@ -1072,11 +1070,8 @@ const msgInput = document.getElementById("msg");
 const sendBtn = document.getElementById("sendBtn");
 const iaSelect = document.getElementById("iaSelect");
 const providerLabel = document.getElementById("providerLabel");
-const alexaCodeBox = document.getElementById("alexaCode");
 const alexaStatusBadge = document.getElementById("alexaStatusBadge");
-const alexaCountdown = document.getElementById("alexaCountdown");
 const alexaHelp = document.getElementById("alexaHelp");
-const generateCodeBtn = document.getElementById("generateCodeBtn");
 const unlinkAlexaBtn = document.getElementById("unlinkAlexaBtn");
 const surveyModal = document.getElementById("surveyModal");
 const surveyButton = document.getElementById("surveyButton");
@@ -1542,123 +1537,39 @@ async function startApp() {
 }
 
 async function loadAlexaStatus() {
+  const session = token;
   try {
     const res = await fetch(API + "/alexa/status", { headers: authHeaders() });
     const data = await res.json();
-
+    if (token !== session) return;
+    if (!res.ok) throw new Error(data.error || "No se pudo comprobar la conexión.");
+    alexaStatusBadge.innerText = data.linked ? "Vinculada" : "Pendiente de vinculación";
+    alexaStatusBadge.className = "alexa-status " + (data.linked ? "status-linked" : "status-unlinked");
+    unlinkAlexaBtn.disabled = !data.linked;
     if (data.linked) {
-      pairExpiresAt = null;
-      stopPairTimer();
-      alexaStatusBadge.innerText = "Vinculada";
-      alexaStatusBadge.className = "alexa-status status-linked";
-      alexaCodeBox.innerText = "OK";
-      alexaCountdown.innerText = "";
-      alexaHelp.innerText = "Tu Alexa está vinculada. Puedes decir: “pregunta qué es una API” o “usa groq rápido”.";
-      unlinkAlexaBtn.disabled = false;
-      return;
-    }
-
-    unlinkAlexaBtn.disabled = true;
-
-    if (data.active_pair_code) {
-      pairExpiresAt = data.active_pair_code.expires_at;
-      alexaStatusBadge.innerText = "Código activo";
-      alexaStatusBadge.className = "alexa-status status-code";
-      alexaCodeBox.innerText = data.active_pair_code.code;
-      alexaHelp.innerText = `Dile a Alexa: “mi código es ${data.active_pair_code.code}”. Luego confirma diciendo “sí”.`;
-      startPairTimer();
-      return;
-    }
-
-    pairExpiresAt = null;
-    stopPairTimer();
-    alexaStatusBadge.innerText = "No vinculada";
-    alexaStatusBadge.className = "alexa-status status-unlinked";
-    alexaCodeBox.innerText = "------";
-    alexaCountdown.innerText = "";
-    alexaHelp.innerText = "Genera un código temporal y di: “mi código es”, seguido de los seis números.";
-  } catch {
-    alexaStatusBadge.innerText = "Error";
-    alexaStatusBadge.className = "alexa-status status-unlinked";
-    alexaHelp.innerText = showWakeMessage();
-  }
-}
-
-function startPairTimer() {
-  stopPairTimer();
-  updatePairCountdown();
-  pairTimer = setInterval(updatePairCountdown, 1000);
-}
-
-function stopPairTimer() {
-  if (pairTimer) clearInterval(pairTimer);
-  pairTimer = null;
-}
-
-function updatePairCountdown() {
-  if (!pairExpiresAt) {
-    alexaCountdown.innerText = "";
-    return;
-  }
-
-  const diff = new Date(pairExpiresAt).getTime() - Date.now();
-
-  if (diff <= 0) {
-    alexaCountdown.innerText = "Código expirado. Genera uno nuevo.";
-    stopPairTimer();
-    return;
-  }
-
-  const minutes = Math.floor(diff / 60000);
-  const seconds = Math.floor((diff % 60000) / 1000);
-  alexaCountdown.innerText = `Expira en ${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
-async function generateAlexaCode() {
-  generateCodeBtn.disabled = true;
-
-  try {
-    const res = await fetch(API + "/alexa/generate-code", {
-      method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({})
-    });
-
-    const data = await res.json();
-
-    if (data.ok) {
-      alexaCodeBox.innerText = data.code;
-      pairExpiresAt = data.expires_at;
-      alexaStatusBadge.innerText = "Código activo";
-      alexaStatusBadge.className = "alexa-status status-code";
-      alexaHelp.innerText = `Ahora di: “mi código es ${data.code}”. Después confirma diciendo “sí”.`;
-      startPairTimer();
-      alert("Código generado: " + data.code);
+      alexaHelp.innerText = "Tu cuenta comparte historial y cupo con Alexa. Di: “Alexa, abre nexo inteligente”.";
+    } else if (!data.official_linking_available) {
+      alexaHelp.innerText = "La vinculación está en preparación. Pulsa Actualizar más tarde para comprobarla.";
     } else {
-      alert(data.error || "No se pudo generar código.");
+      alexaHelp.innerText = "Abre la app de Alexa, busca Nexo IA entre tus skills y pulsa Vincular cuenta. Inicia sesión y autoriza la conexión. Después vuelve aquí y pulsa Actualizar. Durante la beta, usa la misma cuenta de Amazon autorizada para la skill en desarrollo.";
     }
-
-    await loadAlexaStatus();
   } catch {
-    alert(showWakeMessage());
-  } finally {
-    generateCodeBtn.disabled = false;
+    if (token !== session) return;
+    alexaStatusBadge.innerText = "Sin conexión";
+    alexaStatusBadge.className = "alexa-status status-unlinked";
+    unlinkAlexaBtn.disabled = true;
+    alexaHelp.innerText = "No se pudo comprobar la conexión. Pulsa Actualizar para reintentar.";
   }
 }
 
-function copyAlexaInstructions() {
-  const code = alexaCodeBox.innerText.trim();
-  let text = "Alexa, abre nexo inteligente.";
-
-  if (code && code !== "------" && code !== "OK") {
-    text += ` Luego di: mi código es ${code}. Después confirma diciendo: sí.`;
-  } else {
-    text += " Si no está vinculada, genera un código temporal desde Nexo IA.";
+async function copyAlexaInstructions() {
+  const text = "Abre la app de Alexa y busca Nexo IA entre tus skills de desarrollo. Pulsa Vincular cuenta, inicia sesión en Nexo IA y autoriza la conexión. Después di: Alexa, abre nexo inteligente.";
+  try {
+    await navigator.clipboard.writeText(text);
+    alert("Instrucciones copiadas.");
+  } catch {
+    prompt("Copia estas instrucciones:", text);
   }
-
-  navigator.clipboard?.writeText(text)
-    .then(() => alert("Instrucciones copiadas."))
-    .catch(() => prompt("Copia estas instrucciones:", text));
 }
 
 async function unlinkAlexa() {

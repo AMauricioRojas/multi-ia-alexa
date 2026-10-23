@@ -1,6 +1,6 @@
-# Nexo IA: planes y consumo — incremento local del 22 de octubre de 2026
+# Nexo IA: planes, consumo y Alexa — beta del 23 de octubre de 2026
 
-El backend ahora valida el plan, modelo y cupo antes de cada llamada de web, móvil o Alexa. La app incorpora **Mi plan y consumo**, conectada a `GET /me/usage`. Los cambios están en `feature/planes-consumo` en ambos repositorios. No se han publicado ni activado pagos.
+El backend ahora valida el plan, modelo y cupo antes de cada llamada de web, móvil o Alexa. La app incorpora **Mi plan y consumo**, conectada a `GET /me/usage`. Los cambios están en `feature/planes-consumo` en ambos repositorios. El backend de beta está desplegado en Render Free con PostgreSQL en Neon Free. No se activaron pagos.
 
 ## Carpetas reales
 
@@ -17,7 +17,7 @@ Las rutas anteriores de `Documents` son junctions a estas carpetas. Ejecutar Exp
 - El plan se obtiene de `ai_accounts`, con Básico como valor inicial. El cliente no puede concederse Pro. No existe todavía un endpoint de compra ni verificación de suscripciones.
 - Las reservas se confirman en PostgreSQL antes de llamar al proveedor. Un bloqueo por cuenta protege su cupo entre canales y un bloqueo compartido protege el cupo global entre usuarios y procesos. El presupuesto global conserva el consumo aunque una cuenta se elimine.
 - Cada llamada tiene un identificador de idempotencia. Repetirlo con el mismo contenido devuelve la respuesta guardada o el estado pendiente, sin una segunda llamada; usarlo con otro contenido responde 409. Web/móvil lo envían en `request_id`; también se admite `Idempotency-Key`. Alexa usa `request.requestId`.
-- El cliente conserva ese identificador para reintentar después de un error incierto durante la sesión. Los clientes antiguos sin identificador siguen siendo compatibles, pero no pueden deduplicar reintentos. La persistencia del intento móvil entre cierres de la app queda pendiente.
+- El cliente conserva ese identificador para reintentar después de un error incierto durante la sesión. Los clientes antiguos sin identificador siguen siendo compatibles, pero no pueden deduplicar reintentos. La app conserva el identificador entre cierres usando hashes de sesión y contenido; ese registro no guarda la pregunta ni el token en texto plano.
 - Un rechazo confirmado del proveedor libera la reserva. Un timeout, desconexión, 5xx o respuesta incierta la mantiene: liberar automáticamente podría admitir una segunda consulta ya facturada. La conciliación administrativa de reservas inciertas queda pendiente; no caducan automáticamente.
 - Respuesta, historial y tokens se guardan en una transacción. Si falla el guardado después de la llamada, la reserva permanece y el proveedor no se vuelve a consultar.
 - Contexto limitado a `AI_MAX_INPUT_BYTES` (16000 por defecto), pregunta a la mitad de ese tamaño y salida a `AI_MAX_OUTPUT_TOKENS` (512). Son límites de texto, no equivalencias de precio entre modelos.
@@ -29,10 +29,11 @@ Las rutas anteriores de `Documents` son junctions a estas carpetas. Ejecutar Exp
 - `lib/usage-store.js`: reservas, registros y consulta del consumo.
 - `lib/chat-service.js`: validación y flujo común.
 - `lib/providers.js`: una llamada por intento, topes, timeout y normalización de metadatos de OpenAI/Groq/Gemini.
-- `migrations/001-plans-consumption.sql`: nuevas tablas, sin ejecución automática.
+- `migrations/001-plans-consumption.sql` y `002-alexa-oauth.sql`: tablas de consumo, sesiones, OAuth y reportes, sin ejecución automática.
+- `lib/oauth.js`, `lib/alexa-security.js` y `lib/database.js`: vinculación con PKCE, firmas de Alexa y PostgreSQL remoto con certificados verificados.
 - `scripts/test-isolated.mjs` y `test/*.test.js`: pruebas con PostgreSQL temporal y proveedores simulados.
 - `scripts/migrate-local.mjs`: preparación explícita de una base de desarrollo local.
-- `frontend/index.html`: identificador estable para reintentos de web.
+- `frontend/index.html`: identificador estable para reintentos de web e instrucciones de Account Linking oficial.
 - `env.example` y `package.json`: configuración de beta y comandos.
 - En la app: `app/(tabs)/index.tsx`, `components/plan-usage.tsx` y `hooks/use-plan-usage.ts`.
 
@@ -64,7 +65,7 @@ La URL anterior fue una fixture local con datos sintéticos para revisar la UI, 
 
 ## Preparación local y migración
 
-**El arranque del servidor ya no crea ni altera tablas.** Comprueba que exista `ai_requests` y se detiene si falta el esquema. La migración 001 debe aplicarse explícitamente antes de utilizar esta rama. No se ejecutó sobre ninguna base existente.
+**El arranque del servidor ya no crea ni altera tablas.** Comprueba que existan `ai_requests` y `oauth_tokens` y se detiene si falta el esquema. Las migraciones 001 y 002 deben aplicarse explícitamente antes de utilizar esta rama. La beta usa una base nueva de Neon, restaurada desde una copia local verificada con autorización del usuario.
 
 Para una base local nueva llamada `nexo_ia_dev`, creada previamente en PostgreSQL:
 
@@ -75,12 +76,14 @@ npm run db:prepare:local
 
 Este comando rechaza hosts remotos y nombres distintos de `nexo_ia_dev`; prepara el esquema anterior y las tablas nuevas. No se ejecutó en esta entrega. Para iniciar desarrollo después, configurar el backend exclusivamente con esa base local y comprobar sus variables antes de arrancar. No usar el `.env` existente sin revisar su destino.
 
-El archivo SQL crea tablas nuevas y puede revisarse para una futura migración de producción. No hay orden de despliegue automático. El plan Pro se puede sembrar manualmente sólo en la base local de pruebas; la asignación pública dependerá de compras verificadas en servidor.
+Los archivos SQL crean las tablas nuevas y añaden las columnas necesarias a las tablas anteriores. No hay orden de despliegue automático. El plan Pro se puede sembrar manualmente sólo en la base local de pruebas; la asignación pública dependerá de compras verificadas en servidor.
 
 ## Resultados y límites
 
 La verificación final y la captura visual se documentan en el informe de entrega. La comprobación visual usa la versión web de Expo a 390 × 844; todavía falta validar Android físico, dispositivos Alexa reales y disponibilidad actual de los modelos con credenciales de un entorno controlado.
 
-Antes de una beta pública quedan OAuth/Account Linking y autenticación de solicitudes Alexa, auditoría de sesiones y administración, conciliación de consumos inciertos, medición de costos, límites por costo, verificación de compras Google Play y preparación de publicación. La vinculación por código actual permanece como estaba.
+OAuth/Account Linking y la verificación de solicitudes Alexa ya están implementados. Amazon usa el endpoint HTTPS `/alexa/skill`, las rutas `/oauth/authorize` y `/oauth/token`, el scope `alexa` y PKCE S256. La vinculación antigua por código queda desactivada por defecto. La invocación real en el simulador llegó al backend y devolvió la tarjeta de vinculación sin llamar a proveedores de IA.
+
+La suite aislada contiene 52 pruebas aprobadas. Quedan la prueba vinculada en el teléfono/Echo del usuario, Android físico, conciliación de consumos inciertos, costos, compras verificadas y publicación en tienda. El correo sigue en modo consola, por lo que las altas y recuperaciones por correo requieren configurar un proveedor antes de abrir registros públicos. Render Free puede tardar alrededor de un minuto en despertar tras inactividad; la beta no promete disponibilidad continua de Alexa. `ENABLE_SELF_PING=false` evita sondeos periódicos de la base.
 
 Referencias utilizadas para la implementación: [OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create), [Groq](https://console.groq.com/docs/api-reference), [Gemini](https://ai.google.dev/api/generate-content), [bloqueos PostgreSQL](https://www.postgresql.org/docs/current/explicit-locking.html) y [fuente versionada Expo SDK 54](https://github.com/expo/expo/tree/sdk-54/docs/pages/versions/v54.0.0).
