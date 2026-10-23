@@ -13,6 +13,13 @@ for (const provider of ['chatgpt', 'groq_fast', 'groq_power', 'gemini']) {
       assert.equal(body.max_completion_tokens || body.generationConfig?.maxOutputTokens, 512);
       assert.ok(options.signal);
       assert.ok(!url.includes('synthetic'));
+      if (provider.startsWith('groq_')) {
+        assert.equal(body.reasoning_effort, 'low');
+        assert.equal(body.include_reasoning, false);
+      } else {
+        assert.equal(body.reasoning_effort, undefined);
+        assert.equal(body.include_reasoning, undefined);
+      }
       return { ok: true, status: 200, json: async () => provider === 'gemini'
         ? { candidates: [{ content: { parts: [{ text: 'Hola' }] } }], usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 3, thoughtsTokenCount: 2, totalTokenCount: 10 } }
         : { choices: [{ message: { content: 'Hola' } }], usage: { prompt_tokens: 5, completion_tokens: 5, total_tokens: 10 } } };
@@ -45,4 +52,14 @@ test('respuesta sin texto con tokens se conserva como consumo incierto', async (
   const call = createProviderCall(config, { env, fetchImpl: async () => ({ ok: true, status: 200,
     json: async () => ({ choices: [], usage: { prompt_tokens: 2, completion_tokens: 1, total_tokens: 3 } }) }) });
   await assert.rejects(call('chatgpt', messages), error => error.usage.total_tokens === 3 && !error.definitelyRejected);
+});
+
+test('Groq entrega solo la respuesta final y conserva el consumo total incluido razonamiento', async () => {
+  const call = createProviderCall(config, { env, fetchImpl: async () => ({ ok: true, status: 200,
+    json: async () => ({ choices: [{ message: { content: 'Respuesta final', reasoning: 'private-reasoning' } }],
+      usage: { prompt_tokens: 10, completion_tokens: 30, total_tokens: 40, completion_tokens_details: { reasoning_tokens: 20 } } }) }) });
+  const result = await call('groq_fast', messages);
+  assert.equal(result.text, 'Respuesta final');
+  assert.deepEqual(result.usage, { input_tokens: 10, output_tokens: 30, total_tokens: 40 });
+  assert.ok(!JSON.stringify(result).includes('private-reasoning'));
 });
