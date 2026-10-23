@@ -61,3 +61,40 @@ test('rutas de correo deshabilitadas responden 503 antes de consultar o cambiar 
     assert.equal(health.capabilities.email_delivery, false);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+test('Brevo M2M pide solo correo, comparte el token entre envíos concurrentes y renueva al caducar', async () => {
+  let clock = 100000, tokens = 0, deliveries = 0;
+  const mailer = createEmailSender({ env: { MAIL_MODE: 'brevo', EMAIL_FROM: 'sender@example.invalid', BREVO_CLIENT_ID: 'synthetic-client', BREVO_CLIENT_SECRET: 'synthetic-secret' }, now: () => clock,
+    fetchImpl: async (url, options) => {
+      if (url.endsWith('/oauth/token')) {
+        tokens++;
+        const form = new URLSearchParams(options.body);
+        assert.equal(form.get('grant_type'), 'client_credentials');
+        assert.equal(form.get('scope'), 'transactional.email:write');
+        assert.equal(form.get('client_secret'), 'synthetic-secret');
+        return { ok: true, json: async () => ({ token_type: 'Bearer', access_token: `synthetic-token-${tokens}`, expires_in: 3600, scope: 'transactional.email:write' }) };
+      }
+      deliveries++;
+      assert.equal(options.headers.Authorization, `Bearer synthetic-token-${tokens}`);
+      assert.equal(options.headers['api-key'], undefined);
+      return { ok: true, json: async () => ({ messageId: `synthetic-${deliveries}` }) };
+    } });
+  await Promise.all([mailer.send(message), mailer.send(message)]);
+  assert.equal(tokens, 1);
+  clock += 3600000;
+  await mailer.send(message);
+  assert.equal(tokens, 2);
+  assert.equal(deliveries, 3);
+});
+
+test('Brevo M2M incompleto o con permisos inesperados no envía ni usa una clave alternativa', async () => {
+  const incomplete = createEmailSender({ env: { MAIL_MODE: 'brevo', BREVO_CLIENT_ID: 'synthetic', BREVO_API_KEY: 'synthetic', EMAIL_FROM: 'sender@example.invalid' }, fetchImpl: () => assert.fail('No fallback') });
+  assert.equal(incomplete.available, false);
+  let calls = 0;
+  const broad = createEmailSender({ env: { MAIL_MODE: 'brevo', BREVO_CLIENT_ID: 'synthetic', BREVO_CLIENT_SECRET: 'synthetic', EMAIL_FROM: 'sender@example.invalid' }, fetchImpl: async () => {
+    calls++;
+    return { ok: true, json: async () => ({ token_type: 'Bearer', access_token: 'synthetic', expires_in: 3600, scope: 'contacts:write transactional.email:write' }) };
+  } });
+  await assert.rejects(broad.send(message), /servicio de correos/);
+  assert.equal(calls, 1);
+});
