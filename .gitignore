@@ -3,6 +3,8 @@ node_modules/
 
 # Variables de entorno / API keys
 .env
+.env.*
+.migration-private/
 
 # Logs
 npm-debug.log*
@@ -25,3 +27,10 @@ build/
 # Configuración local de editores
 .vscode/
 .idea/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

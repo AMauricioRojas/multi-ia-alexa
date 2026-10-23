@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import OpenAI from "openai";
 import pkg from "pg";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt";
@@ -9,24 +8,47 @@ import fetch from "node-fetch";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
+import { realpathSync } from "node:fs";
 
-dotenv.config();
+import { planConfig, ChatError } from "./lib/plans.js";
+import { UsageStore } from "./lib/usage-store.js";
+import { createProviderCall } from "./lib/providers.js";
+import { createChatService } from "./lib/chat-service.js";
+import { OAuthStore, oauthConfig, mountOAuth } from "./lib/oauth.js";
+import { createAlexaVerifier } from "./lib/alexa-security.js";
+import { databaseConfig } from "./lib/database.js";
 
 const { Pool } = pkg;
-const app = express();
-const PORT = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Importing this module does not load .env, connect to a database, or start a server.
+export function createApp({ pool, config = planConfig(), providerCall = createProviderCall(config),
+  oauth = oauthConfig(), alexaVerifier = createAlexaVerifier({ skillId: oauth.skillId }) }) {
+const app = express();
+const usageStore = new UsageStore(pool, config);
+const oauthStore = new OAuthStore(pool, oauth);
+const processQuestion = createChatService({ pool, store: usageStore, config, providerCall, providerLabel });
+
 /* =========================
    MIDDLEWARE
 ========================= */
+app.disable("x-powered-by");
+app.use("/alexa/skill", express.json({ limit: "64kb", verify(req, res, buffer) { req.alexaRawBody = Buffer.from(buffer); } }), async (req, res, next) => {
+  try {
+    await alexaVerifier(req.alexaRawBody, req.headers, req.body);
+    next();
+  } catch {
+    res.status(401).json({ error: "Solicitud de Alexa no válida" });
+  }
+});
+app.use("/oauth/token", express.urlencoded({ extended: false, limit: "8kb" }));
 app.use(express.json({ limit: "2mb" }));
 app.use(cors());
 
 app.use((req, res, next) => {
-  console.log(`[REQ] ${new Date().toISOString()} ${req.method} ${req.url}`);
+  console.log(`[REQ] ${new Date().toISOString()} ${req.method} ${req.path}`);
   next();
 });
 
@@ -49,6 +71,8 @@ app.get("/health", (req, res) => {
   res.json({
     ok: true,
     app: "Nexo IA",
+    release: "beta-2026-10-23",
+    capabilities: { plans: true, alexa_oauth: oauth.enabled, content_reports: true },
     message: "Servidor activo",
     time: new Date().toISOString()
   });
@@ -138,21 +162,6 @@ app.get("/delete-account", (req, res) => {
 /* =========================
    DB
 ========================= */
-const pool = process.env.DATABASE_URL
-  ? new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
-    })
-  : new Pool({
-      user: "postgres",
-      host: "localhost",
-      database: "ai_platform",
-      password: process.env.DB_PASSWORD,
-      port: 5432
-    });
-
 async function initDatabase() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -371,13 +380,6 @@ async function initDatabase() {
 }
 
 /* =========================
-   OPENAI
-========================= */
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
-/* =========================
    HELPERS
 ========================= */
 function cleanText(text) {
@@ -408,7 +410,8 @@ function normalizeProvider(provider) {
     gemini: "gemini"
   };
 
-  return map[value] || "auto";
+  if (!Object.hasOwn(map, value)) throw new ChatError("INVALID_MODEL", "Elige un modelo válido.");
+  return map[value];
 }
 
 function providerLabel(provider) {
@@ -421,14 +424,6 @@ function providerLabel(provider) {
   };
 
   return labels[provider] || "Auto";
-}
-
-function shortForAlexa(text) {
-  const clean = String(text || "").replace(/\s+/g, " ").trim();
-
-  if (clean.length <= 850) return clean;
-
-  return clean.slice(0, 850) + "... Puedes ver la respuesta completa en la aplicación.";
 }
 
 function getSlotValue(slots, slotName) {
@@ -467,7 +462,7 @@ function maskEmail(email) {
 }
 
 function generatePairCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(crypto.randomInt(100000, 1000000));
 }
 
 function isValidEmail(email) {
@@ -483,7 +478,7 @@ function isValidPassword(password) {
 }
 
 function generateSixDigitCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(crypto.randomInt(100000, 1000000));
 }
 
 function hashCode(code) {
@@ -716,21 +711,23 @@ async function clearAlexaPairAttempts(alexaUserId) {
 /* =========================
    AUTH
 ========================= */
-function auth(req, res, next) {
-  const token = req.headers.authorization;
-
-  if (!token) {
-    return res.status(401).json({ error: "No token" });
-  }
-
+async function auth(req, res, next) {
+  const header = req.headers.authorization;
+  const token = typeof header === "string" && header.startsWith("Bearer ") ? header.slice(7) : header;
+  if (!token) return res.status(401).json({ error: "Inicia sesión para continuar" });
   try {
-    const data = jwt.verify(token, process.env.JWT_SECRET);
+    const data = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+    if (data.aud !== undefined || !Number.isSafeInteger(data.user_id) || data.user_id < 1) throw new Error("Invalid session");
+    const { rows: [account] } = await pool.query("SELECT id,email_verified,session_version FROM users WHERE id=$1", [data.user_id]);
+    if (!account) return res.status(401).json({ error: "La sesión ya no está disponible" });
+    if ((data.session_version ?? 0) !== account.session_version) return res.status(401).json({ error: "Inicia sesión de nuevo después de cambiar tu contraseña." });
+    if (!account.email_verified) return res.status(403).json({ error: "Verifica tu correo para continuar" });
     req.user = data;
     next();
-  } catch {
-    return res.status(401).json({ error: "Token inválido" });
-  }
+  } catch { res.status(401).json({ error: "Tu sesión expiró. Inicia sesión de nuevo." }); }
 }
+
+mountOAuth(app, { store: oauthStore, auth });
 
 /* =========================
    REGISTER
@@ -883,6 +880,7 @@ app.post("/login", async (req, res) => {
     }
 
     if (!user.email_verified) {
+      await registerAuthAttempt({ email, ip, type: "login", success: false });
       await createVerificationCodeForUser(user.id, user.email);
 
       return res.status(403).json({
@@ -909,6 +907,7 @@ app.post("/login", async (req, res) => {
       {
         user_id: user.id,
         email: user.email,
+        session_version: user.session_version,
         role: isAdminUserRow(user) ? "admin" : "user"
       },
       process.env.JWT_SECRET,
@@ -1182,15 +1181,18 @@ app.post("/reset-password", async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
 
-    await pool.query(
-      `UPDATE users
-       SET password=$1,
-           reset_code_hash=NULL,
-           reset_expires_at=NULL,
-           reset_attempts=0
-       WHERE id=$2`,
-      [hash, user.id]
+    const changed = await pool.query(
+      `WITH changed AS (
+         UPDATE users SET password=$1, reset_code_hash=NULL, reset_expires_at=NULL,
+           reset_attempts=0, session_version=session_version+1
+         WHERE id=$2 AND reset_code_hash=$3 AND reset_expires_at>CURRENT_TIMESTAMP AND reset_attempts<5
+         RETURNING id
+       ), revoked AS (
+         UPDATE oauth_grants SET revoked_at=CURRENT_TIMESTAMP WHERE user_id IN (SELECT id FROM changed)
+       ) SELECT id FROM changed`,
+      [hash, user.id, hashCode(code)]
     );
+    if (!changed.rowCount) return res.status(400).json({ error: "Código inválido o expirado" });
 
     res.json({
       ok: true,
@@ -1249,6 +1251,7 @@ app.get("/me", auth, async (req, res) => {
    ALEXA PAIRING WEB ENDPOINTS
 ========================= */
 app.post("/alexa/generate-code", auth, async (req, res) => {
+  if (!oauth.legacyEnabled) return res.status(410).json({ error: "Vincula tu cuenta desde la app de Alexa.", code: "OFFICIAL_LINKING_REQUIRED" });
   try {
     const userId = req.user.user_id;
 
@@ -1306,43 +1309,27 @@ app.post("/alexa/generate-code", auth, async (req, res) => {
 
 app.get("/alexa/status", auth, async (req, res) => {
   try {
-    const linkResult = await pool.query(
-      `SELECT preferred_ia, created_at, updated_at
-       FROM alexa_links
-       WHERE user_id=$1
-       ORDER BY id DESC
-       LIMIT 1`,
-      [req.user.user_id]
-    );
-
-    const activeCodeResult = await pool.query(
-      `SELECT code, expires_at
-       FROM alexa_pair_codes
-       WHERE user_id=$1
-         AND used=false
-         AND expires_at > CURRENT_TIMESTAMP
-       ORDER BY id DESC
-       LIMIT 1`,
-      [req.user.user_id]
-    );
-
-    res.json({
-      linked: linkResult.rows.length > 0,
-      link: linkResult.rows[0] || null,
-      active_pair_code: activeCodeResult.rows[0] || null
-    });
-  } catch (error) {
-    console.log("ALEXA STATUS ERROR:", error.message);
-
-    res.status(500).json({
-      error: "Error obteniendo estado de Alexa",
-      detalle: error.message
-    });
-  }
+    const { rows: [grant] } = await pool.query(`SELECT g.created_at FROM oauth_grants g
+      WHERE g.user_id=$1 AND g.client_id=$2 AND g.revoked_at IS NULL AND EXISTS
+      (SELECT 1 FROM oauth_tokens t WHERE t.grant_id=g.id AND t.kind='refresh'
+       AND t.consumed_at IS NULL AND t.revoked_at IS NULL AND t.expires_at>CURRENT_TIMESTAMP)
+      ORDER BY g.created_at DESC LIMIT 1`, [req.user.user_id,oauth.clientId]);
+    const { rows: [legacy] } = oauth.legacyEnabled
+      ? await pool.query("SELECT preferred_ia,created_at,updated_at FROM alexa_links WHERE user_id=$1 AND link_method='code' ORDER BY id DESC LIMIT 1",[req.user.user_id])
+      : { rows: [] };
+    const { rows: [code] } = oauth.legacyEnabled
+      ? await pool.query("SELECT code,expires_at FROM alexa_pair_codes WHERE user_id=$1 AND used=false AND expires_at>CURRENT_TIMESTAMP ORDER BY id DESC LIMIT 1",[req.user.user_id])
+      : { rows: [] };
+    res.set("Cache-Control", "no-store").json({ linked: Boolean(grant || legacy),
+      method: grant ? "oauth" : legacy ? "code" : null, link: grant || legacy || null,
+      active_pair_code: code || null, official_linking_available: oauth.enabled,
+      legacy_pairing_enabled: oauth.legacyEnabled });
+  } catch { res.status(503).json({ error: "No pudimos consultar la conexión con Alexa." }); }
 });
 
 app.delete("/alexa/unlink", auth, async (req, res) => {
   try {
+    await oauthStore.revoke(req.user.user_id);
     await pool.query(
       "DELETE FROM alexa_links WHERE user_id=$1",
       [req.user.user_id]
@@ -1541,240 +1528,20 @@ app.post("/survey/submit", auth, async (req, res) => {
   }
 });
 
-/* =========================
-   IA FUNCTIONS
-========================= */
-async function askChatGPT(messages) {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Falta OPENAI_API_KEY");
-  }
-
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages
-  });
-
-  const text = response.choices?.[0]?.message?.content;
-
-  if (!text) {
-    throw new Error("ChatGPT no devolvió respuesta");
-  }
-
-  return text;
-}
-
-async function askGroq(messages, mode = "fast") {
-  if (!process.env.GROQ_API_KEY) {
-    throw new Error("Falta GROQ_API_KEY");
-  }
-
-  const model =
-    mode === "power"
-      ? "llama-3.3-70b-versatile"
-      : "llama-3.1-8b-instant";
-
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.7
-    })
-  });
-
-  const data = await response.json();
-
-  if (!response.ok || !data.choices?.[0]?.message?.content) {
-    console.log("GROQ ERROR RESPONSE:", data);
-    throw new Error(data.error?.message || "Groq no devolvió respuesta");
-  }
-
-  return data.choices[0].message.content;
-}
-
-async function askGemini(mensaje) {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("Falta GEMINI_API_KEY");
-  }
-
-  const model = "gemini-2.5-flash-lite";
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: mensaje
-              }
-            ]
-          }
-        ]
-      })
-    }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok || !data.candidates?.[0]?.content?.parts?.[0]?.text) {
-    console.log("GEMINI ERROR RESPONSE:", data);
-    throw new Error(data.error?.message || "Gemini no devolvió respuesta");
-  }
-
-  return data.candidates[0].content.parts[0].text;
-}
-
-async function askAI(provider, messages, rawMessage) {
-  const selected = normalizeProvider(provider);
-
-  if (selected === "chatgpt") {
-    return {
-      respuesta: await askChatGPT(messages),
-      iaUsada: "chatgpt"
-    };
-  }
-
-  if (selected === "groq_fast") {
-    return {
-      respuesta: await askGroq(messages, "fast"),
-      iaUsada: "groq_fast"
-    };
-  }
-
-  if (selected === "groq_power") {
-    return {
-      respuesta: await askGroq(messages, "power"),
-      iaUsada: "groq_power"
-    };
-  }
-
-  if (selected === "gemini") {
-    try {
-      return {
-        respuesta: await askGemini(rawMessage),
-        iaUsada: "gemini"
-      };
-    } catch (geminiError) {
-      console.log("Gemini falló, usando Groq rápido:", geminiError.message);
-
-      const fallback = await askGroq(messages, "fast");
-
-      return {
-        respuesta:
-          "Gemini no respondió correctamente. Respondí usando Groq rápido como respaldo.\n\n" +
-          fallback,
-        iaUsada: "groq_fast"
-      };
-    }
-  }
-
+// Plans and usage are resolved from the authenticated account, never from client input.
+app.get("/me/usage", auth, async (req, res) => {
   try {
-    return {
-      respuesta: await askGroq(messages, "fast"),
-      iaUsada: "groq_fast"
-    };
-  } catch (groqError) {
-    console.log("AUTO: Groq falló, usando ChatGPT:", groqError.message);
-
-    return {
-      respuesta: await askChatGPT(messages),
-      iaUsada: "chatgpt"
-    };
+    res.set("Cache-Control", "no-store");
+    res.json(await usageStore.summary(req.user.user_id));
+  } catch {
+    res.status(503).json({ code: "USAGE_UNAVAILABLE", error: "No pudimos consultar tu consumo. Intenta de nuevo." });
   }
-}
+});
 
-/* =========================
-   SHARED CHAT HANDLER
-========================= */
-async function processQuestion({
-  user_id,
-  mensaje,
-  provider,
-  conversation_id,
-  source,
-  alexaMode = false
-}) {
-  const convId = conversation_id || `${source}-${Date.now()}`;
-
-  const contexto = await pool.query(
-    `SELECT role, mensaje 
-     FROM (
-       SELECT id, role, mensaje
-       FROM chats
-       WHERE user_id=$1 
-         AND conversation_id=$2
-         AND deleted_at IS NULL
-         AND role IN ('user', 'ai')
-       ORDER BY id DESC
-       LIMIT 20
-     ) AS ultimos
-     ORDER BY id ASC`,
-    [user_id, convId]
-  );
-
-  const systemPrompt = alexaMode
-    ? "Responde en español de forma clara, útil y breve. La respuesta será leída por Alexa, así que evita listas largas y sé directo."
-    : "Responde en español de forma clara, útil y directa.";
-
-  const messages = [
-    {
-      role: "system",
-      content: systemPrompt
-    },
-    ...contexto.rows.map(m => ({
-      role: m.role === "user" ? "user" : "assistant",
-      content: m.mensaje
-    })),
-    {
-      role: "user",
-      content: mensaje
-    }
-  ];
-
-  let respuesta = "";
-  let iaUsada = normalizeProvider(provider);
-
-  try {
-    const aiResult = await askAI(provider, messages, mensaje);
-    respuesta = aiResult.respuesta;
-    iaUsada = aiResult.iaUsada;
-  } catch (aiError) {
-    console.log("IA ERROR:", aiError.message);
-
-    respuesta = `No pude responder con ${providerLabel(provider)}. Error: ${aiError.message}`;
-    iaUsada = normalizeProvider(provider);
-  }
-
-  await pool.query(
-    `INSERT INTO chats (user_id, conversation_id, role, mensaje, ia, source)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [user_id, convId, "user", mensaje, iaUsada, source]
-  );
-
-  await pool.query(
-    `INSERT INTO chats (user_id, conversation_id, role, mensaje, ia, source)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [user_id, convId, "ai", respuesta, iaUsada, source]
-  );
-
-  return {
-    respuesta,
-    respuesta_alexa: shortForAlexa(respuesta),
-    conversation_id: convId,
-    ia: iaUsada,
-    ia_nombre: providerLabel(iaUsada),
-    source
-  };
+function sendChatError(res, error) {
+  if (error instanceof ChatError) return res.status(error.status).json({ error: error.message, code: error.code });
+  console.error("CHAT ERROR:", error.code || "INTERNAL_ERROR");
+  return res.status(503).json({ error: "No pudimos procesar la consulta. Intenta de nuevo más tarde.", code: "CHAT_UNAVAILABLE" });
 }
 
 /* =========================
@@ -1798,24 +1565,21 @@ app.post("/preguntar", auth, async (req, res) => {
       provider,
       conversation_id,
       source: req.body.source === "mobile" ? "mobile" : "web",
-      alexaMode: false
+      alexaMode: false,
+      request_id: req.headers["idempotency-key"] ?? req.body.request_id
     });
 
     res.json(result);
   } catch (error) {
-    console.log("CHAT ERROR:", error);
-
-    res.status(500).json({
-      error: "Error servidor",
-      detalle: error.message
-    });
+    return sendChatError(res, error);
   }
 });
 
 /* =========================
    ALEXA SIMPLE TEST
 ========================= */
-app.post("/alexa/preguntar", async (req, res) => {
+app.post("/alexa/preguntar", auth, async (req, res) => {
+  if (!oauth.legacyEnabled) return res.status(410).json({ error: "Este acceso se sustituyó por la vinculación oficial de Alexa." });
   try {
     const mensaje = cleanText(req.body.mensaje);
     const provider = normalizeProvider(req.body.ia || "auto");
@@ -1838,12 +1602,12 @@ app.post("/alexa/preguntar", async (req, res) => {
       `SELECT pc.id AS code_id, pc.user_id, u.email
        FROM alexa_pair_codes pc
        JOIN users u ON u.id = pc.user_id
-       WHERE pc.code=$1
+       WHERE pc.code=$1 AND pc.user_id=$2
          AND pc.used=false
          AND pc.expires_at > CURRENT_TIMESTAMP
        ORDER BY pc.id DESC
        LIMIT 1`,
-      [pairCode]
+      [pairCode, req.user.user_id]
     );
 
     if (codeResult.rows.length === 0) {
@@ -1860,7 +1624,8 @@ app.post("/alexa/preguntar", async (req, res) => {
       provider,
       conversation_id,
       source: "alexa",
-      alexaMode: true
+      alexaMode: true,
+      request_id: req.headers["idempotency-key"] ?? req.body.request_id
     });
 
     res.json({
@@ -1869,16 +1634,28 @@ app.post("/alexa/preguntar", async (req, res) => {
       conversation_id: result.conversation_id,
       ia: result.ia,
       ia_nombre: result.ia_nombre,
-      source: "alexa"
+      source: "alexa",
+      request_id: result.request_id,
+      usage: result.usage,
+      replayed: result.replayed || false
     });
   } catch (error) {
-    console.log("ALEXA SIMPLE ERROR:", error);
-
-    res.status(500).json({
-      error: "Error servidor Alexa",
-      detalle: error.message
-    });
+    return sendChatError(res, error);
   }
+});
+
+app.post("/content-reports", auth, async (req,res) => {
+  const { chat_id: chatId, category, comment = "" } = req.body;
+  if (!Number.isSafeInteger(chatId) || !["offensive","unsafe","incorrect","other"].includes(category)
+      || typeof comment !== "string" || comment.length > 1000) return res.status(400).json({ error: "Revisa los datos del reporte." });
+  try {
+    const owned = await pool.query("SELECT id FROM chats WHERE id=$1 AND user_id=$2 AND role='ai' AND deleted_at IS NULL",[chatId,req.user.user_id]);
+    if (!owned.rowCount) return res.status(404).json({ error: "No se encontró esa respuesta." });
+    const recent = await pool.query("SELECT COUNT(*)::int AS count FROM content_reports WHERE user_id=$1 AND created_at>CURRENT_TIMESTAMP-INTERVAL '1 hour'",[req.user.user_id]);
+    if (recent.rows[0].count >= 10) return res.status(429).json({ error: "Ya recibimos tus reportes recientes. Intenta más tarde." });
+    await pool.query("INSERT INTO content_reports(user_id,chat_id,category,comment) VALUES ($1,$2,$3,$4)",[req.user.user_id,chatId,category,comment]);
+    res.status(201).json({ ok: true, message: "Gracias. Recibimos tu reporte para revisión." });
+  } catch { res.status(503).json({ error: "No pudimos guardar el reporte. Intenta de nuevo." }); }
 });
 
 /* =========================
@@ -2049,7 +1826,7 @@ function alexaResponse(text, shouldEndSession = false, sessionAttributes = {}) {
 
 async function getAlexaLink(alexaUserId) {
   const result = await pool.query(
-    `SELECT al.user_id, al.preferred_ia, u.email, u.alexa_code
+    `SELECT al.user_id, al.preferred_ia, al.link_method, u.email, u.alexa_code
      FROM alexa_links al
      JOIN users u ON u.id = al.user_id
      WHERE al.alexa_user_id=$1`,
@@ -2057,6 +1834,26 @@ async function getAlexaLink(alexaUserId) {
   );
 
   return result.rows[0] || null;
+}
+
+function accountLinkResponse() {
+  const result = alexaResponse("Abre la app de Alexa y pulsa Vincular cuenta en la skill Nexo IA para conectar tu cuenta de forma segura.", true);
+  result.response.card = { type: "LinkAccount" };
+  return result;
+}
+
+async function resolveAlexaLink(req, alexaUserId) {
+  if (req.alexaIdentityResolved) return req.alexaIdentity;
+  const accessToken = req.body.context?.System?.user?.accessToken || req.body.session?.user?.accessToken;
+  let identity = null;
+  if (accessToken) identity = await oauthStore.identity(accessToken, alexaUserId);
+  else if (oauth.legacyEnabled) {
+    const link = await getAlexaLink(alexaUserId);
+    if (link?.link_method === "code") identity = link;
+  }
+  req.alexaIdentityResolved = true;
+  req.alexaIdentity = identity;
+  return identity;
 }
 
 async function findValidPairCode(code) {
@@ -2130,9 +1927,19 @@ app.post("/alexa/skill", async (req, res) => {
     const requestType = req.body?.request?.type;
     const alexaUserId = getAlexaUserId(req.body);
     const sessionAttributes = req.body?.session?.attributes || {};
+    const intent = req.body?.request?.intent?.name;
+    if (requestType === "AlexaSkillEvent.SkillDisabled") {
+      await pool.query("UPDATE oauth_grants SET revoked_at=CURRENT_TIMESTAMP WHERE alexa_user_id=$1 AND revoked_at IS NULL", [alexaUserId]);
+      await pool.query("DELETE FROM alexa_links WHERE alexa_user_id=$1", [alexaUserId]);
+      return res.json({});
+    }
+    if ((requestType === "LaunchRequest" || ["PreguntaIntent", "CambiarIAIntent"].includes(intent)) && !await resolveAlexaLink(req, alexaUserId)) {
+      return res.json(accountLinkResponse());
+    }
+    if (!oauth.legacyEnabled && ["VincularIntent", "AMAZON.YesIntent"].includes(intent)) return res.json(accountLinkResponse());
 
     if (requestType === "LaunchRequest") {
-      const link = await getAlexaLink(alexaUserId);
+      const link = await resolveAlexaLink(req, alexaUserId);
 
       if (link) {
         return res.json(
@@ -2255,7 +2062,7 @@ app.post("/alexa/skill", async (req, res) => {
       }
 
       if (intentName === "CambiarIAIntent") {
-        const link = await getAlexaLink(alexaUserId);
+        const link = await resolveAlexaLink(req, alexaUserId);
 
         if (!link) {
           return res.json(
@@ -2268,6 +2075,10 @@ app.post("/alexa/skill", async (req, res) => {
 
         const iaValue = getSlotValue(slots, "ia");
         const provider = normalizeSpokenIA(iaValue);
+        const usage = await usageStore.summary(link.user_id);
+        if (provider !== "auto" && !usage.allowed_models.some(model => model.id === provider)) {
+          throw new ChatError("MODEL_NOT_ALLOWED", "Tu plan no incluye ese modelo. Puedes elegir Auto o uno de los modelos de tu plan.", 403);
+        }
 
         await pool.query(
           `UPDATE alexa_links
@@ -2285,7 +2096,7 @@ app.post("/alexa/skill", async (req, res) => {
       }
 
       if (intentName === "PreguntaIntent") {
-        const link = await getAlexaLink(alexaUserId);
+        const link = await resolveAlexaLink(req, alexaUserId);
 
         if (!link) {
           return res.json(
@@ -2313,7 +2124,8 @@ app.post("/alexa/skill", async (req, res) => {
           provider: link.preferred_ia || "auto",
           conversation_id: null,
           source: "alexa",
-          alexaMode: true
+          alexaMode: true,
+          request_id: req.body.request?.requestId
         });
 
         return res.json(
@@ -2355,11 +2167,11 @@ app.post("/alexa/skill", async (req, res) => {
       alexaResponse("No pude procesar esa solicitud.", true)
     );
   } catch (error) {
-    console.log("ALEXA SKILL ERROR:", error);
+    console.log("ALEXA SKILL ERROR:", error.code || "INTERNAL_ERROR");
 
     return res.json(
       alexaResponse(
-        "Hubo un error procesando tu solicitud. Intenta de nuevo más tarde.",
+        error instanceof ChatError ? error.message : "Hubo un error procesando tu solicitud. Intenta de nuevo más tarde.",
         true
       )
     );
@@ -2801,19 +2613,6 @@ app.post("/admin/send-survey-report", adminAuth, async (req, res) => {
 /* =========================
    START SERVER
 ========================= */
-async function startServer() {
-  try {
-    await initDatabase();
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Nexo IA listo en puerto ${PORT}`);
-      startKeepAlive();
-    });
-  } catch (error) {
-    console.error("❌ ERROR INICIANDO SERVIDOR:", error);
-    process.exit(1);
-  }
-}
 app.get("/debug/pair-attempts", adminAuth, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -2839,6 +2638,10 @@ app.get("/debug/pair-attempts", adminAuth, async (req, res) => {
    PUBLIC_URL=https://multi-ia-alexa-backend.onrender.com
 ========================= */
 function startKeepAlive() {
+  if (process.env.ENABLE_SELF_PING !== "true") {
+    console.log("ℹ️ Keep alive desactivado. Sin consultas periódicas a la base.");
+    return;
+  }
   const publicUrl = process.env.PUBLIC_URL;
 
   if (!publicUrl) {
@@ -2867,4 +2670,28 @@ function startKeepAlive() {
   }, intervalMs);
 }
 
-startServer();
+app.locals.initializeLegacyDatabase = initDatabase;
+app.locals.startKeepAlive = startKeepAlive;
+return app;
+}
+
+async function startServer() {
+  dotenv.config();
+  const pool = new Pool(databaseConfig());
+  try {
+    // Schema changes require a separate, explicit migration. Startup is read-only.
+    await pool.query("SELECT 1 FROM ai_requests LIMIT 0");
+    await pool.query("SELECT 1 FROM oauth_tokens LIMIT 0");
+    const app = createApp({ pool });
+    app.listen(process.env.PORT || 3000, () => {
+      console.log("Nexo IA: servidor activo");
+      app.locals.startKeepAlive();
+    });
+  } catch (error) {
+    console.error("No se inició el servidor. Verifica la base y las migraciones:", error.code || "CONFIGURATION_ERROR");
+    await pool.end();
+    process.exitCode = 1;
+  }
+}
+
+if (process.argv[1] && realpathSync(process.argv[1]) === __filename) startServer();

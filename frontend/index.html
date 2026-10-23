@@ -1814,6 +1814,7 @@ async function deleteAllChats() {
 }
 
 function nuevoChat() {
+  pendingQuestion = null;
   conversation_id = null;
   chat.innerHTML = "";
   showEmptyState();
@@ -1821,11 +1822,17 @@ function nuevoChat() {
   msgInput.focus();
 }
 
+let pendingQuestion = null;
 async function send() {
   const mensaje = msgInput.value.trim();
   const ia = iaSelect.value;
 
-  if (!mensaje) return;
+  if (!mensaje || sendBtn.disabled) return;
+  const fingerprint = JSON.stringify([mensaje, ia, conversation_id, token]);
+  if (pendingQuestion?.fingerprint !== fingerprint) {
+    pendingQuestion = { fingerprint, id: crypto.randomUUID() };
+  }
+  const request_id = pendingQuestion.id;
 
   clearEmptyState();
   addMsg("user", mensaje, "", "web", new Date().toISOString());
@@ -1838,22 +1845,26 @@ async function send() {
     const res = await fetch(API + "/preguntar", {
       method: "POST",
       headers: authHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ mensaje, conversation_id, ia })
+      body: JSON.stringify({ mensaje, conversation_id, ia, request_id })
     });
 
     const data = await res.json();
 
     if (data.error) {
+      if (["REQUEST_PENDING", "SAVE_PENDING", "PROVIDER_UNKNOWN", "CHAT_UNAVAILABLE"].includes(data.code)) msgInput.value = mensaje;
+      else pendingQuestion = null;
       addMsg("ai", data.error, "Error", "web", new Date().toISOString());
       return;
     }
 
+    pendingQuestion = null;
     conversation_id = data.conversation_id;
     addMsg("ai", data.respuesta, data.ia_nombre || getProviderName(data.ia), data.source || "web", new Date().toISOString());
 
     loadChats();
     checkSurveyStatus();
   } catch {
+    msgInput.value = mensaje;
     addMsg("ai", showWakeMessage(), "Error", "web", new Date().toISOString());
   } finally {
     sendBtn.disabled = false;

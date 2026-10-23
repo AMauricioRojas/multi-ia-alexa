@@ -4,7 +4,10 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test:consumption": "node scripts/test-isolated.mjs",
+    "db:prepare:local": "node scripts/migrate-local.mjs",
+    "preview:oauth": "node scripts/test-isolated.mjs --preview"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -15,5 +18,9 @@
     "node-fetch": "^3.3.2",
     "openai": "^6.38.0",
     "pg": "^8.21.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.1.2"
   }
 }
