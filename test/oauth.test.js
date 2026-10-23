@@ -62,11 +62,22 @@ test('página de consentimiento: cookie HttpOnly, CSP y sin redirección abierta
   const bad=await call('/oauth/authorize?'+new URLSearchParams(query({redirect_uri:'https://evil.test'})));
   assert.equal(bad.status,400);assert.equal(bad.headers.get('location'),null);
 });
-async function consent(){
-  const page=await call('/oauth/authorize?'+new URLSearchParams(query()));
+async function consent(extra={}){
+  const page=await call('/oauth/authorize?'+new URLSearchParams(query(extra)));
   const html=await page.text();
   return {transaction:html.match(/id="transaction" type="hidden" value="([^"]+)"/)[1],cookie:page.headers.get('set-cookie').split(';')[0]};
 }
+test('estado largo de Alexa conserva todos los caracteres al autorizar',async()=>{
+  const state='synthetic-state-'.repeat(100).slice(0,1099);
+  const ctx=await consent({state});
+  const approved=await call('/oauth/authorize',{body:{transaction:ctx.transaction,decision:'approve'},auth:token(users[0]),cookie:ctx.cookie});
+  assert.equal(approved.status,200);
+  const redirect=new URL((await approved.json()).redirect);
+  assert.equal(redirect.searchParams.get('state'),state);
+  assert.ok(redirect.searchParams.get('code'));
+  assert.equal(calls,0);
+  assert.throws(()=>store.validateAuthorization(query({state:'x'.repeat(8193)})));
+});
 test('consentimiento requiere sesión, cookie y mismo origen; conserva state',async()=>{
   const ctx=await consent(),body={transaction:ctx.transaction,decision:'approve'};
   assert.equal((await call('/oauth/authorize',{body,cookie:ctx.cookie})).status,401);
