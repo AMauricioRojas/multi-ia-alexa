@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nexo IA | Voz, Web y App con IA</title>
-<link rel="icon" href="assets/favicon.png">
+<title>Zuneri | Voz, Web y App con IA</title>
+<link rel="icon" type="image/png" href="assets/zuneri-icon.png">
+<link rel="icon" href="assets/zuneri-icon.png">
 <style>
 :root {
   --bg: #070816;
@@ -827,14 +828,14 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
   <div class="auth-shell">
     <div class="hero-card">
       <div class="brand-row">
-        <img class="logo-img" src="assets/nexo-logo.png" alt="Nexo IA">
+        <img class="logo-img" src="assets/zuneri-logo.png" alt="Zuneri">
         <div>
-          <h1 class="brand-title">Nexo IA</h1>
+          <h1 class="brand-title">Zuneri</h1>
           <p class="brand-subtitle">Voz, web y app conectadas con inteligencia artificial.</p>
         </div>
       </div>
 
-      <h2 class="hero-title">Tu asistente de voz ahora tiene un <span class="gradient-text">nexo inteligente.</span></h2>
+      <h2 class="hero-title">Tu asistente de voz para <span class="gradient-text">aprender y crear.</span></h2>
       <p class="hero-copy">
         Haz preguntas desde Alexa, la web o el móvil. Guarda historial, compara respuestas de IA
         y mide la experiencia con encuestas para tu investigación.
@@ -858,9 +859,9 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
   <aside class="sidebar">
     <div class="sidebar-top">
       <div class="mini-brand">
-        <img src="assets/nexo-logo.png" alt="Nexo IA">
+        <img src="assets/zuneri-logo.png" alt="Zuneri">
         <div>
-          <h3>Nexo IA</h3>
+          <h3>Zuneri</h3>
           <p>Centro de conversaciones</p>
         </div>
       </div>
@@ -872,7 +873,7 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
         <small>Vinculación segura</small>
 
         <div id="alexaHelp" class="alexa-help">
-          Abre la app de Alexa, busca Nexo IA y pulsa Vincular cuenta. Inicia sesión y autoriza la conexión.
+          Abre la app de Alexa, busca Zuneri y pulsa Vincular cuenta. Inicia sesión y autoriza la conexión.
         </div>
 
         <div class="grid-actions">
@@ -921,7 +922,7 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
   <main class="main">
     <div class="header">
       <div>
-        <span class="header-title">Panel Nexo IA</span>
+        <span class="header-title">Panel Zuneri</span>
         <span id="providerLabel" class="header-provider">Auto inteligente</span>
       </div>
 
@@ -943,7 +944,7 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 
 <div id="surveyModal" class="modal-backdrop">
   <div class="modal">
-    <h2>📊 Encuesta Nexo IA</h2>
+    <h2>📊 Encuesta Zuneri</h2>
     <p>Ayúdanos a medir si Alexa mejora al conectarse con modelos de inteligencia artificial.</p>
 
     <div class="survey-row">
@@ -980,7 +981,7 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
     </div>
 
     <div class="survey-row">
-      <label>¿Preferirías usar Alexa con Nexo IA?</label>
+      <label>¿Preferirías usar Alexa con Zuneri?</label>
       <select id="surveyPreferred">
         <option value="true">Sí</option>
         <option value="false">No</option>
@@ -1004,7 +1005,7 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
     </div>
 
     <div class="consent-box">
-      <label><input type="checkbox" id="surveyConsent"> <span>Acepto que mis respuestas se usen de forma anónima con fines académicos y de mejora del sistema Nexo IA.</span></label>
+      <label><input type="checkbox" id="surveyConsent"> <span>Acepto que mis respuestas se usen de forma anónima con fines académicos y de mejora del sistema Zuneri.</span></label>
     </div>
 
     <div class="modal-actions">
@@ -1022,7 +1023,7 @@ button:disabled { opacity: .6; cursor: not-allowed; transform: none; }
     <div class="settings-grid">
       <div class="settings-card">
         <h3>Cuenta</h3>
-        <p id="settingsUserEmail">Sesión activa en Nexo IA.</p>
+        <p id="settingsUserEmail">Sesión activa en Zuneri.</p>
         <div class="modal-actions">
           <button class="btn-secondary" onclick="window.open('/privacy', '_blank')">Privacidad</button>
           <button class="btn-secondary" onclick="window.open('/terms', '_blank')">Términos</button>
@@ -1412,7 +1413,7 @@ function updateAdminUi() {
     adminModeStatus.className = hasKey ? "admin-unlocked" : "admin-locked";
   }
   if (openResearchBtn) openResearchBtn.style.display = hasKey ? "block" : "none";
-  if (settingsUserEmail) settingsUserEmail.textContent = currentUser?.email ? `Sesión: ${currentUser.email}` : "Sesión activa en Nexo IA.";
+  if (settingsUserEmail) settingsUserEmail.textContent = currentUser?.email ? `Sesión: ${currentUser.email}` : "Sesión activa en Zuneri.";
 }
 
 function openSettings() {
@@ -1513,9 +1514,9 @@ function dateFromConversationId(id) {
 function showEmptyState() {
   chat.innerHTML = `
     <div class="empty-state">
-      <img src="assets/nexo-logo.png" alt="Nexo IA">
-      <h2>Bienvenido a Nexo IA</h2>
-      <p>Pregunta desde la web, conecta Alexa diciendo <b>“Alexa, abre nexo inteligente”</b> o consulta tu historial desde la app móvil.</p>
+      <img src="assets/zuneri-logo.png" alt="Zuneri">
+      <h2>Bienvenido a Zuneri</h2>
+      <p>Pregunta desde la web, conecta Alexa diciendo <b>“Alexa, abre zuneri inteligente”</b> o consulta tu historial desde la app móvil.</p>
     </div>
   `;
 }
@@ -1547,11 +1548,11 @@ async function loadAlexaStatus() {
     alexaStatusBadge.className = "alexa-status " + (data.linked ? "status-linked" : "status-unlinked");
     unlinkAlexaBtn.disabled = !data.linked;
     if (data.linked) {
-      alexaHelp.innerText = "Tu cuenta comparte historial y cupo con Alexa. Di: “Alexa, abre nexo inteligente”.";
+      alexaHelp.innerText = "Tu cuenta comparte historial y cupo con Alexa. Di: “Alexa, abre zuneri inteligente”.";
     } else if (!data.official_linking_available) {
       alexaHelp.innerText = "La vinculación está en preparación. Pulsa Actualizar más tarde para comprobarla.";
     } else {
-      alexaHelp.innerText = "Abre la app de Alexa, busca Nexo IA entre tus skills y pulsa Vincular cuenta. Inicia sesión y autoriza la conexión. Después vuelve aquí y pulsa Actualizar. Durante la beta, usa la misma cuenta de Amazon autorizada para la skill en desarrollo.";
+      alexaHelp.innerText = "Abre la app de Alexa, busca Zuneri entre tus skills y pulsa Vincular cuenta. Inicia sesión y autoriza la conexión. Después vuelve aquí y pulsa Actualizar. Durante la beta, usa la misma cuenta de Amazon autorizada para la skill en desarrollo.";
     }
   } catch {
     if (token !== session) return;
@@ -1563,7 +1564,7 @@ async function loadAlexaStatus() {
 }
 
 async function copyAlexaInstructions() {
-  const text = "Abre la app de Alexa y busca Nexo IA entre tus skills de desarrollo. Pulsa Vincular cuenta, inicia sesión en Nexo IA y autoriza la conexión. Después di: Alexa, abre nexo inteligente.";
+  const text = "Abre la app de Alexa y busca Zuneri entre tus skills de desarrollo. Pulsa Vincular cuenta, inicia sesión en Zuneri y autoriza la conexión. Después di: Alexa, abre zuneri inteligente.";
   try {
     await navigator.clipboard.writeText(text);
     alert("Instrucciones copiadas.");

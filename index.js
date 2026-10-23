@@ -70,7 +70,7 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
   res.json({
     ok: true,
-    app: "Nexo IA",
+    app: "Zuneri",
     release: "beta-2026-10-23",
     capabilities: { plans: true, alexa_oauth: oauth.enabled, content_reports: true },
     message: "Servidor activo",
@@ -81,7 +81,7 @@ app.get("/health", (req, res) => {
 app.get("/keep-alive", (req, res) => {
   res.json({
     ok: true,
-    app: "Nexo IA",
+    app: "Zuneri",
     message: "Keep alive recibido",
     time: new Date().toISOString()
   });
@@ -94,7 +94,7 @@ function renderPublicPage(title, subtitle, bodyHtml) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${title} | Nexo IA</title>
+<title>${title} | Zuneri</title>
 <style>
   body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; background:#020617; color:#f8fafc; line-height:1.65; }
   .wrap { max-width: 920px; margin: 0 auto; padding: 42px 20px; }
@@ -107,15 +107,15 @@ function renderPublicPage(title, subtitle, bodyHtml) {
   .pill { display:inline-block; background:rgba(56,189,248,.14); color:#bae6fd; border:1px solid rgba(56,189,248,.22); padding:8px 12px; border-radius:999px; font-weight:900; }
 </style>
 </head>
-<body><main class="wrap"><section class="card"><span class="pill">Nexo IA</span><h1>${title}</h1><p class="muted">${subtitle}</p>${bodyHtml}<p><a href="/">Volver a Nexo IA</a></p></section></main></body></html>`;
+<body><main class="wrap"><section class="card"><span class="pill">Zuneri</span><h1>${title}</h1><p class="muted">${subtitle}</p>${bodyHtml}<p><a href="/">Volver a Zuneri</a></p></section></main></body></html>`;
 }
 
 app.get("/privacy", (req, res) => {
   res.type("html").send(renderPublicPage(
     "Política de privacidad",
-    "Última actualización: 2026. Documento para uso académico y beta de Nexo IA.",
+    "Última actualización: 2026. Documento para uso académico y beta de Zuneri.",
     `<h2>1. Datos que se recopilan</h2>
-     <p>Nexo IA recopila correo electrónico, contraseña cifrada, preguntas realizadas desde web, app móvil o Alexa, respuestas generadas, estado de vinculación con Alexa y respuestas de encuesta académica.</p>
+     <p>Zuneri recopila correo electrónico, contraseña cifrada, preguntas realizadas desde web, app móvil o Alexa, respuestas generadas, estado de vinculación con Alexa y respuestas de encuesta académica.</p>
      <h2>2. Uso de los datos</h2>
      <p>Los datos se usan para iniciar sesión, guardar historial, conectar Alexa, recuperar contraseña, medir la calidad de experiencia y apoyar el análisis académico del proyecto.</p>
      <h2>3. Encuestas e investigación</h2>
@@ -125,16 +125,16 @@ app.get("/privacy", (req, res) => {
      <h2>5. Eliminación de cuenta</h2>
      <p>El usuario puede eliminar su cuenta desde la web/app o solicitar ayuda desde la página de eliminación de cuenta.</p>
      <h2>6. Contacto</h2>
-     <p>Para solicitudes relacionadas con datos del proyecto, contacta al equipo desarrollador de Nexo IA.</p>`
+     <p>Para solicitudes relacionadas con datos del proyecto, contacta al equipo desarrollador de Zuneri.</p>`
   ));
 });
 
 app.get("/terms", (req, res) => {
   res.type("html").send(renderPublicPage(
     "Términos de uso",
-    "Condiciones generales para usar Nexo IA en beta académica.",
+    "Condiciones generales para usar Zuneri en beta académica.",
     `<h2>1. Uso permitido</h2>
-     <p>Nexo IA está diseñado como asistente académico y demostración tecnológica que conecta web, app móvil y Alexa con modelos de inteligencia artificial.</p>
+     <p>Zuneri está diseñado como asistente académico y demostración tecnológica que conecta web, app móvil y Alexa con modelos de inteligencia artificial.</p>
      <h2>2. Respuestas de IA</h2>
      <p>Las respuestas pueden contener errores. El usuario debe verificar información importante antes de tomar decisiones.</p>
      <h2>3. Cuentas</h2>
@@ -149,9 +149,9 @@ app.get("/terms", (req, res) => {
 app.get("/delete-account", (req, res) => {
   res.type("html").send(renderPublicPage(
     "Eliminación de cuenta",
-    "Opciones para borrar o solicitar eliminación de datos en Nexo IA.",
+    "Opciones para borrar o solicitar eliminación de datos en Zuneri.",
     `<h2>Eliminar desde la web o app</h2>
-     <p>Inicia sesión en Nexo IA y usa la opción <b>Eliminar cuenta</b>. Esto elimina la cuenta y la información asociada mediante las relaciones de base de datos.</p>
+     <p>Inicia sesión en Zuneri y usa la opción <b>Eliminar cuenta</b>. Esto elimina la cuenta y la información asociada mediante las relaciones de base de datos.</p>
      <h2>Solicitar ayuda</h2>
      <p>Si no puedes iniciar sesión, solicita apoyo al equipo desarrollador indicando el correo registrado. El equipo podrá revisar la solicitud desde el panel administrativo.</p>
      <h2>Importante</h2>
@@ -322,7 +322,7 @@ async function initDatabase() {
 
   await pool.query(`
     ALTER TABLE survey_feedback
-    ADD COLUMN IF NOT EXISTS research_context TEXT DEFAULT 'Nexo IA investigación académica';
+    ADD COLUMN IF NOT EXISTS research_context TEXT DEFAULT 'Zuneri investigación académica';
   `);
 
   await pool.query(`
@@ -517,7 +517,7 @@ async function sendNexoEmail({ to, subject, text, html }) {
   const mode = process.env.MAIL_MODE || "console";
 
   if (mode === "resend" && process.env.RESEND_API_KEY) {
-    const from = process.env.EMAIL_FROM || "Nexo IA <onboarding@resend.dev>";
+    const from = process.env.EMAIL_FROM || "Zuneri <onboarding@resend.dev>";
 
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -569,9 +569,9 @@ async function createVerificationCodeForUser(userId, email) {
 
   await sendNexoEmail({
     to: email,
-    subject: "Código de verificación de Nexo IA",
+    subject: "Código de verificación de Zuneri",
     text:
-      `Tu código de verificación de Nexo IA es: ${code}\n\n` +
+      `Tu código de verificación de Zuneri es: ${code}\n\n` +
       "Este código expira en 10 minutos. Si tú no solicitaste esto, puedes ignorar este mensaje."
   });
 
@@ -1094,9 +1094,9 @@ app.post("/forgot-password", async (req, res) => {
 
       await sendNexoEmail({
         to: user.email,
-        subject: "Recuperación de contraseña de Nexo IA",
+        subject: "Recuperación de contraseña de Zuneri",
         text:
-          `Tu código para recuperar la contraseña de Nexo IA es: ${code}
+          `Tu código para recuperar la contraseña de Zuneri es: ${code}
 
 ` +
           "Este código expira en 10 minutos. Si tú no solicitaste esto, puedes ignorar este mensaje."
@@ -1499,7 +1499,7 @@ app.post("/survey/submit", auth, async (req, res) => {
     await pool.query(
       `INSERT INTO survey_feedback
        (user_id, clarity, completeness, usefulness, preferred_use, best_ai, comments, consent_academic, research_context, source, user_agent)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Nexo IA investigación académica', $9, $10)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Zuneri investigación académica', $9, $10)`,
       [
         req.user.user_id,
         clarity,
@@ -1837,7 +1837,7 @@ async function getAlexaLink(alexaUserId) {
 }
 
 function accountLinkResponse() {
-  const result = alexaResponse("Abre la app de Alexa y pulsa Vincular cuenta en la skill Nexo IA para conectar tu cuenta de forma segura.", true);
+  const result = alexaResponse("Abre la app de Alexa y pulsa Vincular cuenta en la skill Zuneri para conectar tu cuenta de forma segura.", true);
   result.response.card = { type: "LinkAccount" };
   return result;
 }
@@ -1944,7 +1944,7 @@ app.post("/alexa/skill", async (req, res) => {
       if (link) {
         return res.json(
           alexaResponse(
-            "Bienvenido de nuevo a Nexo IA. Tu Alexa ya está vinculada. Puedes decir: pregunta qué es una API, o usa groq rápido.",
+            "Bienvenido de nuevo a Zuneri. Tu Alexa ya está vinculada. Puedes decir: pregunta qué es una API, o usa groq rápido.",
             false
           )
         );
@@ -1952,7 +1952,7 @@ app.post("/alexa/skill", async (req, res) => {
 
       return res.json(
         alexaResponse(
-          "Bienvenido a Nexo IA. Para vincular tu cuenta, abre la página web o la aplicación, genera un código de Alexa, y después dime: mi código es, seguido de los seis números.",
+          "Bienvenido a Zuneri. Para vincular tu cuenta, abre la página web o la aplicación, genera un código de Alexa, y después dime: mi código es, seguido de los seis números.",
           false
         )
       );
@@ -2228,7 +2228,7 @@ app.get("/admin/status", adminAuth, async (req, res) => {
 
     res.json({
       ok: true,
-      app: "Nexo IA",
+      app: "Zuneri",
       keep_alive_enabled: keepAlive === "true",
       public_url: process.env.PUBLIC_URL || null,
       mail_mode: process.env.MAIL_MODE || "console",
@@ -2361,7 +2361,7 @@ app.post("/account/delete-request", async (req, res) => {
     if (process.env.ADMIN_REPORT_EMAIL) {
       await sendNexoEmail({
         to: process.env.ADMIN_REPORT_EMAIL,
-        subject: "Solicitud de eliminación de cuenta - Nexo IA",
+        subject: "Solicitud de eliminación de cuenta - Zuneri",
         text: `Se recibió una solicitud de eliminación para ${email}.\nMotivo: ${reason}`
       }).catch((error) => console.log("DELETE REQUEST EMAIL ERROR:", error.message));
     }
@@ -2480,7 +2480,7 @@ app.get("/admin/research", (req, res) => {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Panel científico | Nexo IA</title>
+<title>Panel científico | Zuneri</title>
 <style>
   body { margin:0; background:#020617; color:#f8fafc; font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; }
   .wrap { max-width:1180px; margin:0 auto; padding:28px 18px 60px; }
@@ -2499,7 +2499,7 @@ app.get("/admin/research", (req, res) => {
 </style>
 </head>
 <body><main class="wrap">
-<section class="hero"><h1>Panel científico Nexo IA</h1><p>Consulta métricas de uso, encuestas anónimas, exportaciones y solicitudes de eliminación. Los datos requieren la clave privada <b>ADMIN_SECRET</b>.</p></section>
+<section class="hero"><h1>Panel científico Zuneri</h1><p>Consulta métricas de uso, encuestas anónimas, exportaciones y solicitudes de eliminación. Los datos requieren la clave privada <b>ADMIN_SECRET</b>.</p></section>
 <section class="card"><label class="label">Clave de desarrollador</label><input id="key" type="password" placeholder="ADMIN_SECRET"><div><button onclick="saveKey()">Guardar clave</button><button class="secondary" onclick="loadData()">Cargar datos</button><button class="secondary" onclick="downloadCsv()">Exportar CSV</button><button class="secondary" onclick="downloadJson()">Exportar JSON</button><button class="secondary" onclick="sendReport()">Enviar reporte al correo</button><button class="danger" onclick="logoutKey()">Borrar clave local</button></div><p id="status" class="muted"></p></section>
 <section id="cards" class="cards"></section>
 <section class="tableBox"><h2>Encuestas recientes</h2><div id="feedback"></div></section>
@@ -2528,7 +2528,7 @@ function renderTable(rows){
   html += '</tbody></table>';
   return html;
 }
-async function loadData(){ try{ statusBox.textContent='Cargando...'; const res = await fetchAdmin('/admin/research-data'); const data = await res.json(); const m=data.metrics||{}, s=data.survey||{}; document.getElementById('cards').innerHTML = metric('Usuarios', m.total_users)+metric('Verificados', m.verified_users)+metric('Preguntas web', m.web_questions)+metric('Preguntas móvil', m.mobile_questions)+metric('Preguntas Alexa', m.alexa_questions)+metric('Encuestas', s.total_surveys)+metric('Claridad promedio', s.avg_clarity || '0')+metric('Utilidad promedio', s.avg_usefulness || '0')+metric('Prefieren Nexo IA', (s.preferred_percent || 0)+'%'); document.getElementById('feedback').innerHTML = renderTable((data.feedback||[]).map(r=>({participante:'P-'+r.user_id, claridad:r.clarity, completas:r.completeness, utilidad:r.usefulness, prefiere:r.preferred_use, ia:r.best_ai, comentario:r.comments, origen:r.source, fecha:r.created_at}))); document.getElementById('deleteRequests').innerHTML = renderTable(data.delete_requests||[]); statusBox.textContent='Datos actualizados: '+data.generated_at; }catch(e){ statusBox.textContent='Error: '+e.message; }}
+async function loadData(){ try{ statusBox.textContent='Cargando...'; const res = await fetchAdmin('/admin/research-data'); const data = await res.json(); const m=data.metrics||{}, s=data.survey||{}; document.getElementById('cards').innerHTML = metric('Usuarios', m.total_users)+metric('Verificados', m.verified_users)+metric('Preguntas web', m.web_questions)+metric('Preguntas móvil', m.mobile_questions)+metric('Preguntas Alexa', m.alexa_questions)+metric('Encuestas', s.total_surveys)+metric('Claridad promedio', s.avg_clarity || '0')+metric('Utilidad promedio', s.avg_usefulness || '0')+metric('Prefieren Zuneri', (s.preferred_percent || 0)+'%'); document.getElementById('feedback').innerHTML = renderTable((data.feedback||[]).map(r=>({participante:'P-'+r.user_id, claridad:r.clarity, completas:r.completeness, utilidad:r.usefulness, prefiere:r.preferred_use, ia:r.best_ai, comentario:r.comments, origen:r.source, fecha:r.created_at}))); document.getElementById('deleteRequests').innerHTML = renderTable(data.delete_requests||[]); statusBox.textContent='Datos actualizados: '+data.generated_at; }catch(e){ statusBox.textContent='Error: '+e.message; }}
 async function downloadCsv(){ try{ const res=await fetchAdmin('/admin/export/surveys.csv'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='nexo_ia_encuestas.csv'; a.click(); URL.revokeObjectURL(url); }catch(e){ alert(e.message); }}
 async function downloadJson(){ try{ const res=await fetchAdmin('/admin/export/metrics.json'); const blob=await res.blob(); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='nexo_ia_metricas.json'; a.click(); URL.revokeObjectURL(url); }catch(e){ alert(e.message); }}
 async function sendReport(){ try{ const res=await fetchAdmin('/admin/send-survey-report', {method:'POST'}); const data=await res.json(); alert(data.message || 'Reporte enviado.'); }catch(e){ alert(e.message); }}
@@ -2583,7 +2583,7 @@ app.post("/admin/send-survey-report", adminAuth, async (req, res) => {
     const s = dataset.survey || {};
     const m = dataset.metrics || {};
 
-    const text = `Reporte Nexo IA\n\n` +
+    const text = `Reporte Zuneri\n\n` +
       `Generado: ${dataset.generated_at}\n` +
       `Usuarios: ${m.total_users || 0}\n` +
       `Usuarios verificados: ${m.verified_users || 0}\n` +
@@ -2594,12 +2594,12 @@ app.post("/admin/send-survey-report", adminAuth, async (req, res) => {
       `Claridad promedio: ${s.avg_clarity || 0}\n` +
       `Completitud promedio: ${s.avg_completeness || 0}\n` +
       `Utilidad promedio: ${s.avg_usefulness || 0}\n` +
-      `Prefieren Nexo IA: ${s.preferred_percent || 0}%\n\n` +
+      `Prefieren Zuneri: ${s.preferred_percent || 0}%\n\n` +
       `CSV de encuestas recientes:\n${csv}`;
 
     await sendNexoEmail({
       to,
-      subject: "Reporte de encuestas Nexo IA",
+      subject: "Reporte de encuestas Zuneri",
       text
     });
 
@@ -2684,7 +2684,7 @@ async function startServer() {
     await pool.query("SELECT 1 FROM oauth_tokens LIMIT 0");
     const app = createApp({ pool });
     app.listen(process.env.PORT || 3000, () => {
-      console.log("Nexo IA: servidor activo");
+      console.log("Zuneri: servidor activo");
       app.locals.startKeepAlive();
     });
   } catch (error) {
